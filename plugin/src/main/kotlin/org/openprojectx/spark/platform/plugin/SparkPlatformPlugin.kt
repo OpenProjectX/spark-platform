@@ -11,6 +11,8 @@ import org.gradle.api.artifacts.VersionCatalog
 import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import org.gradle.api.plugins.JavaPlugin
+import org.openprojectx.spark.platform.core.ModuleCoordinate
+import org.openprojectx.spark.platform.core.SparkPlatformCapabilityResolutions
 import org.openprojectx.spark.platform.core.SparkPlatformCatalog
 
 class SparkPlatformPlugin : Plugin<Project> {
@@ -96,23 +98,24 @@ class SparkPlatformPlugin : Plugin<Project> {
 
     private fun configureKnownCapabilityResolutions(project: Project) {
         project.configurations.configureEach { configuration ->
-            // Spark brings org.lz4:lz4-java while Paimon's bundled dependencies bring
-            // at.yawk.lz4:lz4-java. Both publish the same org.lz4:lz4-java capability,
-            // so Gradle rejects Spark 3 + Paimon graphs unless the provider is explicit.
-            configuration.resolutionStrategy.capabilitiesResolution.withCapability(LZ4_CAPABILITY) { details ->
-                val paimonCompatibleProvider = details.candidates.firstOrNull { candidate ->
-                    val id = candidate.id
-                    id is ModuleComponentIdentifier &&
-                        id.group == PAIMON_COMPATIBLE_LZ4_GROUP &&
-                        id.module == PAIMON_COMPATIBLE_LZ4_MODULE
-                }
+            SparkPlatformCapabilityResolutions.BUILT_IN.forEach { rule ->
+                configuration.resolutionStrategy.capabilitiesResolution.withCapability(rule.capability.toString()) { details ->
+                    val provider = details.candidates.firstOrNull { candidate ->
+                        val id = candidate.id
+                        id is ModuleComponentIdentifier && id.matches(rule.preferredProvider)
+                    }
 
-                if (paimonCompatibleProvider != null) {
-                    details.select(paimonCompatibleProvider)
-                    details.because("Paimon's Spark bundle expects at.yawk.lz4:lz4-java when both LZ4 providers are present.")
+                    if (provider != null) {
+                        details.select(provider)
+                        details.because(rule.reason)
+                    }
                 }
             }
         }
+    }
+
+    private fun ModuleComponentIdentifier.matches(coordinate: ModuleCoordinate): Boolean {
+        return group == coordinate.group && module == coordinate.name
     }
 
     private fun configureJib(project: Project, extension: SparkPlatformExtension) {
@@ -199,8 +202,5 @@ class SparkPlatformPlugin : Plugin<Project> {
     companion object {
         const val MANAGED_CONFIGURATION = "sparkPlatform"
         const val BOM_CONFIGURATION = "sparkPlatformBom"
-        private const val LZ4_CAPABILITY = "org.lz4:lz4-java"
-        private const val PAIMON_COMPATIBLE_LZ4_GROUP = "at.yawk.lz4"
-        private const val PAIMON_COMPATIBLE_LZ4_MODULE = "lz4-java"
     }
 }

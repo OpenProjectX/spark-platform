@@ -16,19 +16,43 @@ val variants = providers.gradleProperty("sparkPlatform.variants")
     .orElse(setOf("iceberg", "hudi", "paimon", "openlineage"))
 val libsCatalog = extensions.getByType<VersionCatalogsExtension>().named("libs")
 
-configurations.configureEach {
-    // Spark brings org.lz4:lz4-java while Paimon's bundled dependencies bring
-    // at.yawk.lz4:lz4-java. Both publish the same org.lz4:lz4-java capability,
-    // so Gradle rejects the graph until this Paimon-compatible provider is selected.
-    resolutionStrategy.capabilitiesResolution.withCapability("org.lz4:lz4-java") {
-        val paimonCompatibleProvider = candidates.firstOrNull { candidate ->
-            val id = candidate.id
-            id is ModuleComponentIdentifier && id.group == "at.yawk.lz4" && id.module == "lz4-java"
-        }
+data class ModuleCoordinate(
+    val group: String,
+    val name: String
+) {
+    override fun toString(): String = "$group:$name"
+}
 
-        if (paimonCompatibleProvider != null) {
-            select(paimonCompatibleProvider)
-            because("Paimon's Spark bundle expects at.yawk.lz4:lz4-java when both LZ4 providers are present.")
+data class CapabilityResolutionRule(
+    val capability: ModuleCoordinate,
+    val preferredProvider: ModuleCoordinate,
+    val reason: String
+)
+
+val capabilityResolutionRules = listOf(
+    CapabilityResolutionRule(
+        capability = ModuleCoordinate("org.lz4", "lz4-java"),
+        preferredProvider = ModuleCoordinate("at.yawk.lz4", "lz4-java"),
+        reason = "Paimon's Spark bundle expects at.yawk.lz4:lz4-java when both LZ4 providers are present."
+    )
+)
+
+fun ModuleComponentIdentifier.matches(coordinate: ModuleCoordinate): Boolean {
+    return group == coordinate.group && module == coordinate.name
+}
+
+configurations.configureEach {
+    capabilityResolutionRules.forEach { rule ->
+        resolutionStrategy.capabilitiesResolution.withCapability(rule.capability.toString()) {
+            val provider = candidates.firstOrNull { candidate ->
+                val id = candidate.id
+                id is ModuleComponentIdentifier && id.matches(rule.preferredProvider)
+            }
+
+            if (provider != null) {
+                select(provider)
+                because(rule.reason)
+            }
         }
     }
 }
