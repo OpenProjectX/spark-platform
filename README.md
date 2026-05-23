@@ -43,6 +43,7 @@ See the standalone `examples` Gradle build for runnable applications.
 ```bash
 cd examples
 env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4-iceberg:run --no-configuration-cache
+env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark3-paimon:run --no-configuration-cache
 ```
 
 ## Modules
@@ -73,6 +74,13 @@ Run the Spark 4 example with:
 ```bash
 cd examples
 env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4-iceberg:run --no-configuration-cache
+```
+
+Run the Spark 3 Paimon example with:
+
+```bash
+cd examples
+env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark3-paimon:run --no-configuration-cache
 ```
 
 Build the Spark 4 platform image locally with:

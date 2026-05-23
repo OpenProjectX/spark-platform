@@ -135,7 +135,9 @@ sparkPlatform {
 
 | `variants`
 | empty list
-| Accepted by the extension for build script compatibility. Platform image variants are currently selected with the `sparkPlatform.variants` Gradle property in the `platform-image` module.
+| Optional runtime variants. The plugin uses these for variant-specific managed
+dependency constraints, and `platform-image` also accepts them through the
+`sparkPlatform.variants` Gradle property.
 |===
 
 == Gradle Properties
@@ -157,7 +159,7 @@ sparkPlatform {
 | Target tag for `:platform-image`.
 
 | `sparkPlatform.variants`
-| Comma-separated platform-image variants, for example `iceberg,hudi`.
+| Comma-separated variants, for example `iceberg,hudi`.
 |===
 
 == Version Matrix
@@ -193,6 +195,7 @@ variant name instead of branching on specific Spark versions.
 ----
 spark-platform-<line>-managed
 spark-platform-<line>-variant-<variant>
+spark-platform-<line>-variant-<variant>-managed
 ----
 
 Examples:
@@ -201,11 +204,19 @@ Examples:
 ----
 spark-platform-spark4-managed
 spark-platform-spark4-variant-iceberg
+spark-platform-spark3-variant-paimon-managed
 ----
 
 To add a new Spark line, add the corresponding aliases and bundles to
 `gradle/libs.versions.toml`. For example, a future Spark 5 line would use
 `spark-platform-spark5-managed`.
+
+Use a `spark-platform-<line>-variant-<variant>-managed` bundle when a variant
+cannot share the line-wide BOM. Spark 3 Paimon is the current example: Paimon
+Spark 3.5 uses Scala 2.12 artifacts, while the normal Spark 3 bundle uses Scala
+2.13 artifacts. The plugin selects an isolated variant-managed bundle only when
+that single variant is requested; isolated variant-managed bundles cannot be
+combined with other variants.
 
 == Platform BOM
 
@@ -223,6 +234,10 @@ dependencies {
 
 When using the plugin, the BOM is added automatically through the
 `sparkPlatformBom` configuration.
+
+The plugin and BOM publish strict dependency constraints from the version
+catalog. This keeps transitive dependencies from moving a Spark line away from
+the selected platform version.
 
 == Platform Image
 
@@ -287,6 +302,25 @@ The example:
 * selects `spark4`
 * declares Spark SQL and Iceberg without versions
 * uses a local Iceberg Hadoop catalog
+* pins Gradle and Java execution to JDK 17 for IDE compatibility
+
+== Spark 3 Paimon Example
+
+The runnable example is in `examples/spark3-paimon`.
+
+[source,bash]
+----
+cd examples
+env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark3-paimon:run --no-configuration-cache
+----
+
+The example:
+
+* selects `spark3`
+* selects the isolated `paimon` variant-managed bundle
+* uses Scala 2.12 Spark and Paimon artifacts
+* resolves Paimon's `at.yawk.lz4:lz4-java` capability conflict locally
+* enables `org.apache.paimon.spark.extensions.PaimonSparkSessionExtensions`
 * pins Gradle and Java execution to JDK 17 for IDE compatibility
 
 == JDK Requirements

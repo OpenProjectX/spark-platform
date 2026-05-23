@@ -53,6 +53,24 @@ class SparkPlatformPluginFunctionalTest {
     }
 
     @Test
+    fun `spark platform variant can select an isolated managed bundle`() {
+        writeFixture(
+            """
+            sparkPlatform {
+                line.set("spark3")
+                variants.set(listOf("paimon"))
+            }
+            """.trimIndent()
+        )
+
+        val result = gradleRunner("printSparkPlatform").build()
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":printSparkPlatform")?.outcome)
+        assertTrue(result.output.contains("constraint=org.apache.spark:spark-sql_2.12:3.5.7"))
+        assertTrue(result.output.contains("constraint=org.apache.paimon:paimon-spark-3.5_2.12:1.4.1"))
+    }
+
+    @Test
     fun `plugin configures jib to use the platform base image`() {
         writeFixture(
             """

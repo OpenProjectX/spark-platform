@@ -23,6 +23,10 @@ object SparkPlatformCatalog {
         return "spark-platform-${normalizeLine(line)}-variant-${variant.trim().lowercase()}"
     }
 
+    fun variantManagedBundle(line: String, variant: String): String {
+        return "${variantBundle(line, variant)}-managed"
+    }
+
     fun imageTag(line: String, platformVersion: String): String {
         return "${normalizeLine(line)}-${platformVersion.trim()}"
     }

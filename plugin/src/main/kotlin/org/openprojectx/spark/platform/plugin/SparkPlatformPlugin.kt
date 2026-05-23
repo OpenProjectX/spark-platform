@@ -75,8 +75,18 @@ class SparkPlatformPlugin : Plugin<Project> {
             )
 
             val catalog = project.versionCatalog()
-            catalog.bundle(SparkPlatformCatalog.managedBundle(extension.line.get())).forEach { dependency ->
-                project.dependencies.constraints.add(MANAGED_CONFIGURATION, dependency.asConstraintNotation())
+            val selectedBundles = catalog.managedBundles(extension.line.get(), extension.variants.get())
+            selectedBundles.forEach { bundle ->
+                bundle.forEach { dependency ->
+                    project.dependencies.constraints.add(
+                        MANAGED_CONFIGURATION,
+                        "${dependency.module.group}:${dependency.module.name}"
+                    ) {
+                        it.version { version ->
+                            version.strictly(dependency.requiredVersion())
+                        }
+                    }
+                }
             }
         }
     }
@@ -116,7 +126,41 @@ class SparkPlatformPlugin : Plugin<Project> {
             .get()
     }
 
-    private fun MinimalExternalModuleDependency.asConstraintNotation(): String {
+    private fun VersionCatalog.bundleOrNull(name: String): ExternalModuleDependencyBundle? {
+        return findBundle(name).orElse(null)?.get()
+    }
+
+    private fun VersionCatalog.managedBundles(
+        line: String,
+        requestedVariants: Iterable<String>
+    ): List<ExternalModuleDependencyBundle> {
+        val variants = SparkPlatformCatalog.normalizeVariants(requestedVariants)
+
+        if (variants.size == 1) {
+            val variantManagedBundle = bundleOrNull(
+                SparkPlatformCatalog.variantManagedBundle(line, variants.single())
+            )
+            if (variantManagedBundle != null) {
+                return listOf(variantManagedBundle)
+            }
+        }
+
+        val isolatedVariants = variants.filter {
+            bundleOrNull(SparkPlatformCatalog.variantManagedBundle(line, it)) != null
+        }
+        require(isolatedVariants.isEmpty()) {
+            "Variant-managed Spark Platform bundles are isolated and cannot be combined with other variants: $isolatedVariants"
+        }
+
+        return buildList {
+            add(bundle(SparkPlatformCatalog.managedBundle(line)))
+            variants.forEach { variant ->
+                add(bundle(SparkPlatformCatalog.variantBundle(line, variant)))
+            }
+        }
+    }
+
+    private fun MinimalExternalModuleDependency.requiredVersion(): String {
         val version = versionConstraint.requiredVersion
             .ifBlank { versionConstraint.preferredVersion }
             .ifBlank { versionConstraint.strictVersion }
@@ -125,7 +169,7 @@ class SparkPlatformPlugin : Plugin<Project> {
             "Catalog dependency '${module.group}:${module.name}' must declare a version."
         }
 
-        return "${module.group}:${module.name}:$version"
+        return version
     }
 
     companion object {

@@ -21,6 +21,8 @@ env GRADLE_USER_HOME=/data/.gradle ./gradlew --version
   in plugin source.
 - Add Spark lines by adding catalog aliases and bundles such as
   `spark-platform-spark5-managed`, not by branching on specific version numbers.
+- Use isolated variant-managed bundles when a runtime family cannot share the
+  line-wide Scala binary version or dependency set.
 - Put shared naming or normalization logic in `core`.
 - Keep example projects under the standalone `examples/` Gradle build and exclude generated build output.
 
@@ -45,6 +47,13 @@ cd examples
 env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4-iceberg:run --no-configuration-cache
 ```
 
+Run the Spark 3 + Paimon example:
+
+```bash
+cd examples
+env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark3-paimon:run --no-configuration-cache
+```
+
 Build a platform image:
 
 ```bash
@@ -59,8 +68,10 @@ env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuild \
 2. Add a library alias for each supported Spark line.
 3. Add the alias to the matching managed bundle.
 4. Add a variant bundle if the dependency is optional image content.
-5. Add or update plugin/platform-image tests when behavior changes.
-6. Update `docs/user-reference.adoc`.
+5. Add a `spark-platform-<line>-variant-<variant>-managed` bundle when the
+   variant needs an isolated BOM, for example Scala 2.12-only Spark 3 Paimon.
+6. Add or update plugin/platform-image tests when behavior changes.
+7. Update `docs/user-reference.adoc`.
 
 ## Pull Request Checklist
 
