@@ -11,10 +11,27 @@ val imageRepository = providers.gradleProperty("sparkPlatform.imageRepository")
     .orElse("ghcr.io/openprojectx/spark-platform")
 val imageTag = providers.gradleProperty("sparkPlatform.imageTag")
     .orElse("${platformLine.get()}-$version")
+val baseImageSuffix = providers.gradleProperty("sparkPlatform.baseImageSuffix")
+    .orElse("-java17-python3-r-ubuntu")
+val defaultImageVariantsByLine = mapOf(
+    "spark3" to setOf("paimon", "openlineage"),
+    "spark4" to setOf("iceberg", "hudi", "paimon", "openlineage")
+)
 val variants = providers.gradleProperty("sparkPlatform.variants")
     .map { it.split(",").map(String::trim).filter(String::isNotEmpty).map(String::lowercase).toSet() }
-    .orElse(setOf("iceberg", "hudi", "paimon", "openlineage"))
+    .orElse(
+        providers.provider {
+            defaultImageVariantsByLine[platformLine.get().trim().lowercase()]
+                ?: setOf("iceberg", "hudi", "paimon", "openlineage")
+        }
+    )
 val libsCatalog = extensions.getByType<VersionCatalogsExtension>().named("libs")
+val scalaBinaryVersionPattern = Regex(""".*_(\d+\.\d+)$""")
+val platformJars = configurations.create("platformJars") {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+    description = "Variant jars layered on top of the selected Apache Spark image."
+}
 
 data class ModuleCoordinate(
     val group: String,
@@ -35,6 +52,16 @@ val capabilityResolutionRules = listOf(
         preferredProvider = ModuleCoordinate("at.yawk.lz4", "lz4-java"),
         reason = "Paimon's Spark bundle expects at.yawk.lz4:lz4-java when both LZ4 providers are present."
     )
+)
+val baseProvidedGroups = setOf(
+    "com.google.code.findbugs",
+    "org.apache.hadoop",
+    "org.apache.spark",
+    "org.lz4",
+    "org.scala-lang",
+    "org.scala-lang.modules",
+    "org.slf4j",
+    "org.xerial.snappy"
 )
 
 fun ModuleComponentIdentifier.matches(coordinate: ModuleCoordinate): Boolean {
@@ -61,8 +88,54 @@ fun variantBundleName(line: String, variant: String): String {
     return "spark-platform-${line.trim().lowercase()}-variant-${variant.trim().lowercase()}"
 }
 
+fun managedBundleName(line: String): String {
+    return "spark-platform-${line.trim().lowercase()}-managed"
+}
+
+fun sparkVersion(line: String): String {
+    val versionName = line.trim().lowercase()
+    return libsCatalog.findVersion(versionName)
+        .orElseThrow {
+            IllegalArgumentException(
+                "Version catalog version '$versionName' is missing. Add it to gradle/libs.versions.toml."
+            )
+        }
+        .requiredVersion
+}
+
+fun scalaBinaryVersions(bundleNames: Iterable<String>): Set<String> {
+    return bundleNames.flatMap { bundleName ->
+        libsCatalog.findBundle(bundleName)
+            .orElseThrow {
+                IllegalArgumentException(
+                    "Version catalog bundle '$bundleName' is missing. Add it to gradle/libs.versions.toml."
+                )
+            }
+            .get()
+            .mapNotNull { dependency ->
+                scalaBinaryVersionPattern.matchEntire(dependency.module.name)?.groupValues?.get(1)
+            }
+    }.toSet()
+}
+
+fun sparkBaseImage(line: String, selectedVariants: Set<String>): String {
+    val normalizedLine = line.trim().lowercase()
+    val variantBundleNames = selectedVariants.map { variantBundleName(normalizedLine, it) }
+    val variantScalaVersions = scalaBinaryVersions(variantBundleNames)
+    val scalaVersion = when (variantScalaVersions.size) {
+        0 -> scalaBinaryVersions(listOf(managedBundleName(normalizedLine))).single()
+        1 -> variantScalaVersions.single()
+        else -> error(
+            "Selected variants use multiple Scala binary versions: $variantScalaVersions. " +
+                "Build separate platform images for incompatible variants."
+        )
+    }
+
+    return "spark:${sparkVersion(normalizedLine)}-scala$scalaVersion${baseImageSuffix.get()}"
+}
+
 dependencies {
-    runtimeOnly(platform(project(":platform-bom")))
+    add(platformJars.name, platform(project(":platform-bom")))
 
     variants.get().forEach { variant ->
         val bundleName = variantBundleName(platformLine.get(), variant)
@@ -75,19 +148,30 @@ dependencies {
             .get()
 
         bundle.forEach { dependency ->
-            runtimeOnly(dependency)
+            add(platformJars.name, dependency)
         }
     }
 }
 
+platformJars.exclude(group = "org.apache.spark")
+platformJars.exclude(group = "org.apache.hadoop")
+platformJars.exclude(group = "org.lz4")
+configurations.named(platformJars.name).configure {
+    baseProvidedGroups.forEach { group ->
+        exclude(group = group)
+    }
+}
+
 val syncPlatformJars by tasks.registering(Sync::class) {
-    from(configurations.runtimeClasspath)
-    into(layout.buildDirectory.dir("jib/opt/spark-platform/jars"))
+    from(platformJars) {
+        into("opt/spark/jars")
+    }
+    into(layout.buildDirectory.dir("jib"))
 }
 
 jib {
     from {
-        image = "eclipse-temurin:17-jre"
+        image = sparkBaseImage(platformLine.get(), variants.get())
     }
     to {
         image = imageRepository.get()
@@ -102,8 +186,7 @@ jib {
         }
     }
     container {
-        entrypoint = listOf("sh", "-c", "echo Spark Platform image: jars are in /opt/spark-platform/jars")
-        environment = mapOf("SPARK_EXTRA_CLASSPATH" to "/opt/spark-platform/jars/*")
+        entrypoint = listOf("sh", "-c", "echo Spark Platform image: variant jars are in /opt/spark/jars")
     }
 }
 

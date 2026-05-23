@@ -158,8 +158,15 @@ dependency constraints, and `platform-image` also accepts them through the
 | `sparkPlatform.imageTag`
 | Target tag for `:platform-image`.
 
+| `sparkPlatform.baseImageSuffix`
+| Optional suffix for the Apache Spark base image. Defaults to
+`-java17-python3-r-ubuntu`.
+
 | `sparkPlatform.variants`
-| Comma-separated variants, for example `iceberg,hudi`.
+| Comma-separated variants, for example `iceberg,hudi`. Platform image defaults
+are line-aware: Spark 3 defaults to `paimon,openlineage` because the official
+Spark 3 image is Scala 2.12; Spark 4 defaults to
+`iceberg,hudi,paimon,openlineage`.
 |===
 
 == Version Matrix
@@ -241,7 +248,21 @@ the selected platform version.
 
 == Platform Image
 
-The `platform-image` module builds a base image using Jib.
+The `platform-image` module builds a platform image using Jib. It starts from
+the official Apache Spark image that matches the selected Spark version and
+Scala binary version:
+
+[source,text]
+----
+spark:<spark-version>-scala<scala-binary-version>-java17-python3-r-ubuntu
+----
+
+The suffix can be overridden with `-PsparkPlatform.baseImageSuffix=...`, but
+the default is intentionally fixed to Java 17, Python 3, R, and Ubuntu.
+
+Only variant jars are layered into the Spark image. Spark, Hadoop, Scala, SLF4J,
+snappy, and the standard `org.lz4` provider are treated as base-image-provided
+dependencies and are not copied from Gradle resolution output.
 
 Build a Spark 4 image with Iceberg:
 
@@ -264,10 +285,15 @@ env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuild \
 
 By default, the platform image uses:
 
-* base image: `eclipse-temurin:17-jre`
+* base image: `spark:<spark-version>-scala<scala-binary-version>-java17-python3-r-ubuntu`
 * target image: `ghcr.io/openprojectx/spark-platform`
 * target tag: `<line>-<project.version>`
-* extra jars path: `/opt/spark-platform/jars`
+* extra jars path: `/opt/spark/jars`
+
+Variant sets must use a single Scala binary version so they match one Apache
+Spark base image. Build separate platform images for incompatible Scala variant
+sets. For example, Spark 3 Paimon uses Scala 2.12 and must not be combined with
+Spark 3 variants that require Scala 2.13.
 
 == Application Images
 

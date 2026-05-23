@@ -90,3 +90,7 @@ env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuild \
   -PsparkPlatform.line=spark4 \
   -PsparkPlatform.variants=iceberg
 ```
+
+Platform images use Apache Spark base images such as
+`spark:4.0.1-scala2.13-java17-python3-r-ubuntu` and layer only the selected
+variant jars into `/opt/spark/jars`.
