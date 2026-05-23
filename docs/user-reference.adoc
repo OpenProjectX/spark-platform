@@ -278,8 +278,8 @@ The runnable example is in `examples/spark4`.
 
 [source,bash]
 ----
-cd examples/spark4
-env GRADLE_USER_HOME=/data/.gradle ../../gradlew run --no-configuration-cache
+cd examples
+env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4:run --no-configuration-cache
 ----
 
 The example:
@@ -292,7 +292,7 @@ The example:
 == JDK Requirements
 
 Use JDK 17 for development and runtime checks. The Spark 4 example contains an
-example-local `gradle.properties` that points Gradle at the local Temurin 17
+examples-root `gradle.properties` that points Gradle at the local Temurin 17
 installation and disables toolchain auto-download.
 
 == Troubleshooting
@@ -313,4 +313,3 @@ Java module access error while running Spark or Iceberg::
   Add the required JVM `--add-opens` flag to the JavaExec or application
   configuration. The Spark 4 example uses
   `--add-opens=java.base/java.nio=ALL-UNNAMED`.
-

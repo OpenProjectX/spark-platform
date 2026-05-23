@@ -38,11 +38,11 @@ dependencies {
 }
 ```
 
-See `examples/spark4` for a runnable Spark 4 + Iceberg application.
+See the standalone `examples` Gradle build for runnable applications.
 
 ```bash
-cd examples/spark4
-env GRADLE_USER_HOME=/data/.gradle ../../gradlew run --no-configuration-cache
+cd examples
+env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4:run --no-configuration-cache
 ```
 
 ## Modules
@@ -53,7 +53,7 @@ env GRADLE_USER_HOME=/data/.gradle ../../gradlew run --no-configuration-cache
 | `plugin` | Gradle plugin implementation and TestKit coverage. |
 | `platform-bom` | Java Platform BOM generated from the version catalog. |
 | `platform-image` | Jib-based platform image with selected runtime jars. |
-| `examples/spark4` | Example Spark 4 + Iceberg application. |
+| `examples` | Standalone multi-project build for runnable examples. |
 
 ## Documentation
 
@@ -68,6 +68,13 @@ Use the existing Gradle cache when working in this repository:
 env GRADLE_USER_HOME=/data/.gradle ./gradlew test --no-configuration-cache
 ```
 
+Run the Spark 4 example with:
+
+```bash
+cd examples
+env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4:run --no-configuration-cache
+```
+
 Build the Spark 4 platform image locally with:
 
 ```bash
@@ -75,4 +82,3 @@ env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuild \
   -PsparkPlatform.line=spark4 \
   -PsparkPlatform.variants=iceberg
 ```
-

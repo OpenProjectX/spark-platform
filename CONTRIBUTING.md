@@ -22,7 +22,7 @@ env GRADLE_USER_HOME=/data/.gradle ./gradlew --version
 - Add Spark lines by adding catalog aliases and bundles such as
   `spark-platform-spark5-managed`, not by branching on specific version numbers.
 - Put shared naming or normalization logic in `core`.
-- Keep example projects under `examples/` and exclude generated build output.
+- Keep example projects under the standalone `examples/` Gradle build and exclude generated build output.
 
 ## Useful Commands
 
@@ -41,8 +41,8 @@ env GRADLE_USER_HOME=/data/.gradle ./gradlew :plugin:test --no-configuration-cac
 Run the Spark 4 + Iceberg example:
 
 ```bash
-cd examples/spark4
-env GRADLE_USER_HOME=/data/.gradle ../../gradlew run --no-configuration-cache
+cd examples
+env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4:run --no-configuration-cache
 ```
 
 Build a platform image:
@@ -68,4 +68,3 @@ env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuild \
 - The example project still imports and runs with JDK 17.
 - Public DSL changes are documented in `docs/user-reference.adoc`.
 - New dependencies are managed through the version catalog.
-
