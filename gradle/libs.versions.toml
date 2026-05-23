@@ -4,6 +4,15 @@ kotlinxDatetime = "0.7.1"
 kotlinxSerializationJSON = "1.9.0"
 kotlinxCoroutines = "1.10.2"
 junitJupiter = "6.0.2"
+jib = "3.5.2"
+spark3 = "3.5.7"
+spark4 = "4.0.1"
+hadoopSpark3 = "3.3.6"
+hadoopSpark4 = "3.4.1"
+iceberg = "1.10.0"
+hudi = "1.0.2"
+paimon = "1.2.0"
+openlineage = "1.39.0"
 
 [libraries]
 kotlinGradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
@@ -13,9 +22,62 @@ kotlinxSerialization = { module = "org.jetbrains.kotlinx:kotlinx-serialization-j
 kotlinxCoroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
 junitJupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junitJupiter" }
 junitPlatformLauncher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junitJupiter" }
+jibGradlePlugin = { module = "com.google.cloud.tools:jib-gradle-plugin", version.ref = "jib" }
+
+spark3Core = { module = "org.apache.spark:spark-core_2.13", version.ref = "spark3" }
+spark3Sql = { module = "org.apache.spark:spark-sql_2.13", version.ref = "spark3" }
+spark3Hive = { module = "org.apache.spark:spark-hive_2.13", version.ref = "spark3" }
+spark3HadoopClientApi = { module = "org.apache.hadoop:hadoop-client-api", version.ref = "hadoopSpark3" }
+spark3HadoopClientRuntime = { module = "org.apache.hadoop:hadoop-client-runtime", version.ref = "hadoopSpark3" }
+spark3Iceberg = { module = "org.apache.iceberg:iceberg-spark-runtime-3.5_2.13", version.ref = "iceberg" }
+spark3Hudi = { module = "org.apache.hudi:hudi-spark3.5-bundle_2.13", version.ref = "hudi" }
+spark3Paimon = { module = "org.apache.paimon:paimon-spark-3.5_2.13", version.ref = "paimon" }
+spark3Openlineage = { module = "io.openlineage:openlineage-spark_2.12", version.ref = "openlineage" }
+
+spark4Core = { module = "org.apache.spark:spark-core_2.13", version.ref = "spark4" }
+spark4Sql = { module = "org.apache.spark:spark-sql_2.13", version.ref = "spark4" }
+spark4Hive = { module = "org.apache.spark:spark-hive_2.13", version.ref = "spark4" }
+spark4HadoopClientApi = { module = "org.apache.hadoop:hadoop-client-api", version.ref = "hadoopSpark4" }
+spark4HadoopClientRuntime = { module = "org.apache.hadoop:hadoop-client-runtime", version.ref = "hadoopSpark4" }
+spark4Iceberg = { module = "org.apache.iceberg:iceberg-spark-runtime-4.0_2.13", version.ref = "iceberg" }
+spark4Hudi = { module = "org.apache.hudi:hudi-spark4.0-bundle_2.13", version.ref = "hudi" }
+spark4Paimon = { module = "org.apache.paimon:paimon-spark-4_2.13", version.ref = "paimon" }
+spark4Openlineage = { module = "io.openlineage:openlineage-spark_2.13", version.ref = "openlineage" }
 
 [bundles]
 kotlinxEcosystem = ["kotlinxDatetime", "kotlinxSerialization", "kotlinxCoroutines"]
+spark-platform-spark3-managed = [
+    "spark3Core",
+    "spark3Sql",
+    "spark3Hive",
+    "spark3HadoopClientApi",
+    "spark3HadoopClientRuntime",
+    "spark3Iceberg",
+    "spark3Hudi",
+    "spark3Paimon",
+    "spark3Openlineage",
+]
+spark-platform-spark3-variant-iceberg = ["spark3Iceberg"]
+spark-platform-spark3-variant-hudi = ["spark3Hudi"]
+spark-platform-spark3-variant-paimon = ["spark3Paimon"]
+spark-platform-spark3-variant-openlineage = ["spark3Openlineage"]
+
+spark-platform-spark4-managed = [
+    "spark4Core",
+    "spark4Sql",
+    "spark4Hive",
+    "spark4HadoopClientApi",
+    "spark4HadoopClientRuntime",
+    "spark4Iceberg",
+    "spark4Hudi",
+    "spark4Paimon",
+    "spark4Openlineage",
+]
+spark-platform-spark4-variant-iceberg = ["spark4Iceberg"]
+spark-platform-spark4-variant-hudi = ["spark4Hudi"]
+spark-platform-spark4-variant-paimon = ["spark4Paimon"]
+spark-platform-spark4-variant-openlineage = ["spark4Openlineage"]
 
 [plugins]
 kotlinPluginSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+jib = { id = "com.google.cloud.tools.jib", version.ref = "jib" }

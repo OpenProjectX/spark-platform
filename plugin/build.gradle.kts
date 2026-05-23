@@ -5,6 +5,7 @@ plugins {
 
 dependencies {
     implementation(project(":core"))
+    implementation(libs.jibGradlePlugin)
     testImplementation(libs.junitJupiter)
     testImplementation(gradleTestKit())
     testRuntimeOnly(libs.junitPlatformLauncher)
