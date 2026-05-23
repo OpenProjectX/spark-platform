@@ -1,0 +1,316 @@
+= Spark Platform User Reference
+:toc: left
+:toclevels: 3
+:sectanchors:
+
+Spark Platform provides a Gradle plugin, a BOM, and a Jib-built platform image
+for Spark applications.
+
+The main goal is to keep Spark-related versions in one place while preserving a
+different dependency scope for local development and official platform builds.
+
+== Concepts
+
+Spark line::
+  A named Spark compatibility line, such as `spark3` or `spark4`.
+  The line selects version-catalog bundles named
+  `spark-platform-<line>-managed`.
+
+Managed dependency::
+  A dependency declared by the application without a version on the
+  `sparkPlatform` configuration.
+
+Official build::
+  A build where Spark Platform dependencies are treated as `compileOnly`.
+  This is intended for images that run on top of the platform base image.
+
+Local build::
+  A normal developer build where Spark Platform dependencies are treated as
+  `implementation`, so the application can run from Gradle or an IDE.
+
+Platform image::
+  A container image built by the `platform-image` module. It places selected
+  platform jars under `/opt/spark-platform/jars` and sets
+  `SPARK_EXTRA_CLASSPATH=/opt/spark-platform/jars/*`.
+
+== Applying the Plugin
+
+[source,kotlin]
+----
+plugins {
+    java
+    id("org.openprojectx.spark.platform")
+}
+----
+
+The plugin creates:
+
+* the `sparkPlatform` extension
+* the `sparkPlatform` dependency configuration
+* the `sparkPlatformBom` dependency configuration
+* Jib configuration for application images
+
+The plugin expects a Gradle version catalog named `libs`. The repository uses
+`gradle/libs.versions.toml` as the source of truth for Spark Platform versions.
+
+== Dependency Declaration
+
+Declare managed dependencies without versions:
+
+[source,kotlin]
+----
+dependencies {
+    sparkPlatform("org.apache.spark:spark-sql_2.13")
+    sparkPlatform("org.apache.iceberg:iceberg-spark-runtime-4.0_2.13")
+}
+----
+
+Gradle resolves the versions from the Spark Platform BOM and constraints. Do not
+put Spark Platform dependency versions in application build scripts.
+
+== Local Versus Official Builds
+
+For local builds, `sparkPlatform` and `sparkPlatformBom` extend
+`implementation`:
+
+[source,text]
+----
+implementation
+  extendsFrom sparkPlatform, sparkPlatformBom
+----
+
+For official builds, they extend `compileOnly`:
+
+[source,text]
+----
+compileOnly
+  extendsFrom sparkPlatform, sparkPlatformBom
+----
+
+Official mode is enabled when any of these are true:
+
+* `-PsparkPlatform.officialBuild=true`
+* `CI` environment variable is present
+* `GITHUB_ACTIONS` environment variable is present
+* `JENKINS_HOME` environment variable is present
+
+== Plugin Extension
+
+Configure the plugin with the `sparkPlatform` extension.
+
+[source,kotlin]
+----
+sparkPlatform {
+    line.set("spark4")
+    platformVersion.set("0.1.0-SNAPSHOT")
+    platformImage.set("ghcr.io/openprojectx/spark-platform")
+    imageTag.set("spark4-0.1.0-SNAPSHOT")
+    officialBuild.set(false)
+}
+----
+
+[cols="1,1,2", options="header"]
+|===
+| Property | Default | Description
+
+| `line`
+| `spark3`
+| Selects the managed version-catalog bundle. Supported lines in this repository are `spark3` and `spark4`.
+
+| `platformVersion`
+| `project.version`
+| Version of `org.openprojectx.spark.platform:platform-bom`.
+
+| `platformImage`
+| `ghcr.io/openprojectx/spark-platform`
+| Base image repository used by Jib for application images.
+
+| `imageTag`
+| `<line>-<platformVersion>`
+| Base image tag used by Jib for application images.
+
+| `officialBuild`
+| CI-derived
+| Chooses whether managed dependencies are `implementation` or `compileOnly`.
+
+| `variants`
+| empty list
+| Accepted by the extension for build script compatibility. Platform image variants are currently selected with the `sparkPlatform.variants` Gradle property in the `platform-image` module.
+|===
+
+== Gradle Properties
+
+[cols="1,2", options="header"]
+|===
+| Property | Description
+
+| `sparkPlatform.line`
+| Default Spark line for plugin and platform image builds.
+
+| `sparkPlatform.officialBuild`
+| Forces official mode when set to `true`.
+
+| `sparkPlatform.imageRepository`
+| Target repository for `:platform-image`.
+
+| `sparkPlatform.imageTag`
+| Target tag for `:platform-image`.
+
+| `sparkPlatform.variants`
+| Comma-separated platform-image variants, for example `iceberg,hudi`.
+|===
+
+== Version Matrix
+
+The current version matrix is defined in `gradle/libs.versions.toml`.
+
+[cols="1,1,1", options="header"]
+|===
+| Line | Spark | Hadoop
+
+| `spark3`
+| `3.5.7`
+| `3.3.6`
+
+| `spark4`
+| `4.0.1`
+| `3.4.1`
+|===
+
+Optional runtime families currently represented in the catalog:
+
+* Iceberg `1.10.0`
+* Hudi `1.0.2`
+* Paimon `1.4.1`
+* OpenLineage `1.39.0`
+
+== Version Catalog Bundle Names
+
+The plugin and platform modules derive bundle names from the Spark line and
+variant name instead of branching on specific Spark versions.
+
+[source,text]
+----
+spark-platform-<line>-managed
+spark-platform-<line>-variant-<variant>
+----
+
+Examples:
+
+[source,text]
+----
+spark-platform-spark4-managed
+spark-platform-spark4-variant-iceberg
+----
+
+To add a new Spark line, add the corresponding aliases and bundles to
+`gradle/libs.versions.toml`. For example, a future Spark 5 line would use
+`spark-platform-spark5-managed`.
+
+== Platform BOM
+
+The `platform-bom` module publishes a Java Platform BOM.
+
+For direct use without the plugin:
+
+[source,kotlin]
+----
+dependencies {
+    implementation(platform("org.openprojectx.spark.platform:platform-bom:0.1.0-SNAPSHOT"))
+    implementation("org.apache.spark:spark-sql_2.13")
+}
+----
+
+When using the plugin, the BOM is added automatically through the
+`sparkPlatformBom` configuration.
+
+== Platform Image
+
+The `platform-image` module builds a base image using Jib.
+
+Build a Spark 4 image with Iceberg:
+
+[source,bash]
+----
+env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuild \
+  -PsparkPlatform.line=spark4 \
+  -PsparkPlatform.variants=iceberg \
+  -PsparkPlatform.imageTag=spark4-0.1.0-SNAPSHOT
+----
+
+Build with multiple variants:
+
+[source,bash]
+----
+env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuild \
+  -PsparkPlatform.line=spark4 \
+  -PsparkPlatform.variants=iceberg,hudi,paimon,openlineage
+----
+
+By default, the platform image uses:
+
+* base image: `eclipse-temurin:17-jre`
+* target image: `ghcr.io/openprojectx/spark-platform`
+* target tag: `<line>-<project.version>`
+* extra jars path: `/opt/spark-platform/jars`
+
+== Application Images
+
+The plugin applies and configures the Jib plugin for application projects.
+
+The application image base is:
+
+[source,text]
+----
+<sparkPlatform.platformImage>:<sparkPlatform.imageTag>
+----
+
+The default application image target is:
+
+[source,text]
+----
+<project.group>/<project.name>:<project.version>
+----
+
+== Spark 4 Iceberg Example
+
+The runnable example is in `examples/spark4`.
+
+[source,bash]
+----
+cd examples/spark4
+env GRADLE_USER_HOME=/data/.gradle ../../gradlew run --no-configuration-cache
+----
+
+The example:
+
+* selects `spark4`
+* declares Spark SQL and Iceberg without versions
+* uses a local Iceberg Hadoop catalog
+* pins Gradle and Java execution to JDK 17 for IDE compatibility
+
+== JDK Requirements
+
+Use JDK 17 for development and runtime checks. The Spark 4 example contains an
+example-local `gradle.properties` that points Gradle at the local Temurin 17
+installation and disables toolchain auto-download.
+
+== Troubleshooting
+
+Missing bundle error::
+  If Gradle reports that `spark-platform-<line>-managed` is missing, add the
+  matching bundle to `gradle/libs.versions.toml`.
+
+Dependency version appears in a build script::
+  Move the version to `gradle/libs.versions.toml` and declare the dependency
+  without a version on `sparkPlatform`.
+
+IDE uses a newer JDK::
+  Configure the Gradle JVM to JDK 17, or set `org.gradle.java.home` in the
+  example/project `gradle.properties`.
+
+Java module access error while running Spark or Iceberg::
+  Add the required JVM `--add-opens` flag to the JavaExec or application
+  configuration. The Spark 4 example uses
+  `--add-opens=java.base/java.nio=ALL-UNNAMED`.
+
