@@ -1,4 +1,5 @@
 import org.gradle.api.artifacts.VersionCatalogsExtension
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 
 plugins {
     java
@@ -14,6 +15,23 @@ val variants = providers.gradleProperty("sparkPlatform.variants")
     .map { it.split(",").map(String::trim).filter(String::isNotEmpty).map(String::lowercase).toSet() }
     .orElse(setOf("iceberg", "hudi", "paimon", "openlineage"))
 val libsCatalog = extensions.getByType<VersionCatalogsExtension>().named("libs")
+
+configurations.configureEach {
+    // Spark brings org.lz4:lz4-java while Paimon's bundled dependencies bring
+    // at.yawk.lz4:lz4-java. Both publish the same org.lz4:lz4-java capability,
+    // so Gradle rejects the graph until this Paimon-compatible provider is selected.
+    resolutionStrategy.capabilitiesResolution.withCapability("org.lz4:lz4-java") {
+        val paimonCompatibleProvider = candidates.firstOrNull { candidate ->
+            val id = candidate.id
+            id is ModuleComponentIdentifier && id.group == "at.yawk.lz4" && id.module == "lz4-java"
+        }
+
+        if (paimonCompatibleProvider != null) {
+            select(paimonCompatibleProvider)
+            because("Paimon's Spark bundle expects at.yawk.lz4:lz4-java when both LZ4 providers are present.")
+        }
+    }
+}
 
 fun variantBundleName(line: String, variant: String): String {
     return "spark-platform-${line.trim().lowercase()}-variant-${variant.trim().lowercase()}"

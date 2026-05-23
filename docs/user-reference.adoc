@@ -319,7 +319,7 @@ The example:
 * selects `spark3`
 * selects the isolated `paimon` variant-managed bundle
 * uses Scala 2.12 Spark and Paimon artifacts
-* resolves Paimon's `at.yawk.lz4:lz4-java` capability conflict locally
+* relies on Spark Platform's built-in LZ4 capability resolution for Paimon
 * enables `org.apache.paimon.spark.extensions.PaimonSparkSessionExtensions`
 * pins Gradle and Java execution to JDK 17 for IDE compatibility
 

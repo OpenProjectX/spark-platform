@@ -6,8 +6,9 @@ Paimon Spark 3.5 currently supports Scala 2.12 only, so this example uses
 `sparkPlatform.line = spark3` with the isolated `paimon` variant and declares
 the `_2.12` Spark/Paimon artifacts without versions.
 
-The example also resolves Paimon's `at.yawk.lz4:lz4-java` capability conflict
-locally and adds Spark 3's Java 17 module export for Gradle `run`.
+The Spark Platform plugin resolves Paimon's `at.yawk.lz4:lz4-java` capability
+conflict automatically. This example only adds Spark 3's Java 17 module export
+for Gradle `run`.
 
 ```bash
 cd ..
