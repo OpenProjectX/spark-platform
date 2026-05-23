@@ -7,6 +7,6 @@ Spark/Iceberg dependencies without versions.
 
 ```bash
 cd ..
-env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4:compileJava --no-configuration-cache
-env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4:run --no-configuration-cache
+env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4-iceberg:compileJava --no-configuration-cache
+env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4-iceberg:run --no-configuration-cache
 ```

@@ -274,12 +274,12 @@ The default application image target is:
 
 == Spark 4 Iceberg Example
 
-The runnable example is in `examples/spark4`.
+The runnable example is in `examples/spark4-iceberg`.
 
 [source,bash]
 ----
 cd examples
-env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4:run --no-configuration-cache
+env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4-iceberg:run --no-configuration-cache
 ----
 
 The example:

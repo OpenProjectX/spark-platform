@@ -8,15 +8,15 @@ local plugin and platform BOM.
 
 | Project | Description |
 | --- | --- |
-| `:spark4` | Spark 4 + Iceberg example using a local Iceberg Hadoop catalog. |
+| `:spark4-iceberg` | Spark 4 + Iceberg example using a local Iceberg Hadoop catalog. |
 
 ## Commands
 
 Run from this directory:
 
 ```bash
-env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4:compileJava --no-configuration-cache
-env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4:run --no-configuration-cache
+env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4-iceberg:compileJava --no-configuration-cache
+env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4-iceberg:run --no-configuration-cache
 ```
 
 The examples build pins Gradle and Java execution to JDK 17 for IDE imports and

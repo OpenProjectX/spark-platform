@@ -42,7 +42,7 @@ Run the Spark 4 + Iceberg example:
 
 ```bash
 cd examples
-env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4:run --no-configuration-cache
+env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4-iceberg:run --no-configuration-cache
 ```
 
 Build a platform image:
