@@ -10,7 +10,7 @@ spark4 = "4.0.1"
 hadoopSpark3 = "3.3.6"
 hadoopSpark4 = "3.4.1"
 iceberg = "1.10.0"
-hudi = "1.0.2"
+hudi = "1.2.0"
 paimon = "1.4.1"
 openlineage = "1.39.0"
 
@@ -44,7 +44,7 @@ spark4HadoopClientApi = { module = "org.apache.hadoop:hadoop-client-api", versio
 spark4HadoopClientRuntime = { module = "org.apache.hadoop:hadoop-client-runtime", version.ref = "hadoopSpark4" }
 spark4Iceberg = { module = "org.apache.iceberg:iceberg-spark-runtime-4.0_2.13", version.ref = "iceberg" }
 spark4Hudi = { module = "org.apache.hudi:hudi-spark4.0-bundle_2.13", version.ref = "hudi" }
-spark4Paimon = { module = "org.apache.paimon:paimon-spark-4_2.13", version.ref = "paimon" }
+spark4Paimon = { module = "org.apache.paimon:paimon-spark-4.0_2.13", version.ref = "paimon" }
 spark4Openlineage = { module = "io.openlineage:openlineage-spark_2.13", version.ref = "openlineage" }
 
 [bundles]

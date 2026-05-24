@@ -83,24 +83,34 @@ cd examples
 env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark3-paimon:run --no-configuration-cache
 ```
 
-Build the Spark 4 platform image locally with:
+Build the default Spark 4 platform images locally with:
 
 ```bash
-env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuild \
-  -PsparkPlatform.line=spark4 \
-  -PsparkPlatform.variants=iceberg \
-  -PsparkPlatform.imageTag=spark4-0.1.0-SNAPSHOT
+env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuildPlatformImages \
+  -PsparkPlatform.line=spark4
 ```
 
 Platform images use Apache Spark base images such as
 `spark:4.0.1-scala2.13-java17-python3-r-ubuntu` and layer only the selected
-variant jars into `/opt/spark/jars`.
+variant jars into `/opt/spark/jars`. Variant names are part of the generated
+image tag, for example `spark4-iceberg-0.1.1-SNAPSHOT`.
+
+The aggregate `jibDockerBuildPlatformImages` task builds each selected variant
+individually, then builds one combined image for each Scala-compatible variant
+group, after applying line-specific isolation rules such as Spark 3 Paimon.
+Build one explicit variant set with:
+
+```bash
+env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuild \
+  -PsparkPlatform.line=spark4 \
+  -PsparkPlatform.variants=iceberg,hudi
+```
 
 `jibDockerBuild` writes to the local Docker daemon. Inspect a built image with:
 
 ```bash
-docker inspect ghcr.io/openprojectx/spark-platform:spark4-0.1.0-SNAPSHOT
-docker run --rm --entrypoint sh ghcr.io/openprojectx/spark-platform:spark4-0.1.0-SNAPSHOT \
+docker inspect ghcr.io/openprojectx/spark-platform:spark4-iceberg-0.1.1-SNAPSHOT
+docker run --rm --entrypoint sh ghcr.io/openprojectx/spark-platform:spark4-iceberg-0.1.1-SNAPSHOT \
   -c 'ls -1 /opt/spark/jars | sort'
 ```
 

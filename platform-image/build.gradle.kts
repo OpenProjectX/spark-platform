@@ -1,5 +1,6 @@
 import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+import org.gradle.api.tasks.Exec
 
 plugins {
     java
@@ -9,20 +10,21 @@ plugins {
 val platformLine = providers.gradleProperty("sparkPlatform.line").orElse("spark3")
 val imageRepository = providers.gradleProperty("sparkPlatform.imageRepository")
     .orElse("ghcr.io/openprojectx/spark-platform")
-val imageTag = providers.gradleProperty("sparkPlatform.imageTag")
-    .orElse("${platformLine.get()}-$version")
 val baseImageSuffix = providers.gradleProperty("sparkPlatform.baseImageSuffix")
     .orElse("-java17-python3-r-ubuntu")
 val defaultImageVariantsByLine = mapOf(
-    "spark3" to setOf("paimon", "openlineage"),
-    "spark4" to setOf("iceberg", "hudi", "paimon", "openlineage")
+    "spark3" to listOf("iceberg", "hudi", "paimon", "openlineage"),
+    "spark4" to listOf("iceberg", "hudi", "paimon", "openlineage")
+)
+val isolatedCombinedImageVariantsByLine = mapOf(
+    "spark3" to setOf("paimon")
 )
 val variants = providers.gradleProperty("sparkPlatform.variants")
-    .map { it.split(",").map(String::trim).filter(String::isNotEmpty).map(String::lowercase).toSet() }
+    .map { it.split(",").map(String::trim).filter(String::isNotEmpty).map(String::lowercase).distinct() }
     .orElse(
         providers.provider {
             defaultImageVariantsByLine[platformLine.get().trim().lowercase()]
-                ?: setOf("iceberg", "hudi", "paimon", "openlineage")
+                ?: listOf("iceberg", "hudi", "paimon", "openlineage")
         }
     )
 val libsCatalog = extensions.getByType<VersionCatalogsExtension>().named("libs")
@@ -119,20 +121,68 @@ fun scalaBinaryVersions(bundleNames: Iterable<String>): Set<String> {
     }.toSet()
 }
 
-fun sparkBaseImage(line: String, selectedVariants: Set<String>): String {
+fun scalaBinaryVersion(line: String, variant: String): String {
+    val versions = scalaBinaryVersions(listOf(variantBundleName(line, variant)))
+    return when (versions.size) {
+        1 -> versions.single()
+        else -> error("Variant '$variant' for line '$line' must resolve to exactly one Scala binary version, found $versions.")
+    }
+}
+
+fun platformImageTag(line: String, selectedVariants: Iterable<String>): String {
+    val normalizedLine = line.trim().lowercase()
+    val variantPart = selectedVariants.joinToString("-") { it.trim().lowercase() }
+        .ifBlank { "base" }
+    return "$normalizedLine-$variantPart-$version"
+}
+
+fun sparkBaseImage(line: String, selectedVariants: Iterable<String>, failOnMultipleScalaVersions: Boolean = true): String {
     val normalizedLine = line.trim().lowercase()
     val variantBundleNames = selectedVariants.map { variantBundleName(normalizedLine, it) }
     val variantScalaVersions = scalaBinaryVersions(variantBundleNames)
     val scalaVersion = when (variantScalaVersions.size) {
         0 -> scalaBinaryVersions(listOf(managedBundleName(normalizedLine))).single()
         1 -> variantScalaVersions.single()
-        else -> error(
-            "Selected variants use multiple Scala binary versions: $variantScalaVersions. " +
-                "Build separate platform images for incompatible variants."
-        )
+        else -> if (failOnMultipleScalaVersions) {
+            error(
+                "Selected variants use multiple Scala binary versions: $variantScalaVersions. " +
+                    "Build separate platform images for incompatible variants."
+            )
+        } else {
+            variantScalaVersions.first()
+        }
     }
 
     return "spark:${sparkVersion(normalizedLine)}-scala$scalaVersion${baseImageSuffix.get()}"
+}
+
+data class PlatformImageBuildSpec(
+    val name: String,
+    val variants: List<String>
+)
+
+fun buildSpecs(line: String, selectedVariants: List<String>): List<PlatformImageBuildSpec> {
+    val isolatedVariants = isolatedCombinedImageVariantsByLine[line.trim().lowercase()].orEmpty()
+    val individualSpecs = selectedVariants.map { variant ->
+        PlatformImageBuildSpec(variant, listOf(variant))
+    }
+    val combinedSpecs = selectedVariants
+        .filterNot { variant -> variant in isolatedVariants }
+        .groupBy { variant -> scalaBinaryVersion(line, variant) }
+        .values
+        .filter { compatibleVariants -> compatibleVariants.size > 1 }
+        .map { compatibleVariants ->
+            PlatformImageBuildSpec(compatibleVariants.joinToString("-"), compatibleVariants)
+        }
+
+    return individualSpecs + combinedSpecs
+}
+
+fun taskNameSuffix(value: String): String {
+    return value
+        .split(Regex("[^A-Za-z0-9]+"))
+        .filter(String::isNotBlank)
+        .joinToString("") { part -> part.replaceFirstChar { it.uppercaseChar() } }
 }
 
 dependencies {
@@ -172,11 +222,12 @@ val syncPlatformJars by tasks.registering(Sync::class) {
 
 jib {
     from {
-        image = sparkBaseImage(platformLine.get(), variants.get())
+        image = sparkBaseImage(platformLine.get(), variants.get(), failOnMultipleScalaVersions = false)
     }
     to {
-        image = imageRepository.get()
-        tags = setOf(imageTag.get())
+        image = "${imageRepository.get()}:${providers.gradleProperty("sparkPlatform.imageTag").orElse(
+            providers.provider { platformImageTag(platformLine.get(), variants.get()) }
+        ).get()}"
     }
     extraDirectories {
         paths {
@@ -191,8 +242,42 @@ jib {
     }
 }
 
+val platformImageBuildSpecs = buildSpecs(platformLine.get(), variants.get())
+val platformImageBuildTaskNames = platformImageBuildSpecs.map { spec ->
+    val taskName = "jibDockerBuild${taskNameSuffix(spec.name)}PlatformImage"
+    tasks.register<Exec>(taskName) {
+        group = "jib"
+        description = "Builds the ${spec.name} Spark Platform image in the local Docker daemon."
+        workingDir = rootDir
+        commandLine(
+            rootProject.layout.projectDirectory.file("gradlew").asFile.absolutePath,
+            ":platform-image:jibDockerBuild",
+            "-PsparkPlatform.line=${platformLine.get()}",
+            "-PsparkPlatform.variants=${spec.variants.joinToString(",")}",
+            "-PsparkPlatform.imageRepository=${imageRepository.get()}",
+            "-PsparkPlatform.imageTag=${platformImageTag(platformLine.get(), spec.variants)}",
+            "-PsparkPlatform.baseImageSuffix=${baseImageSuffix.get()}"
+        )
+    }
+    taskName
+}
+platformImageBuildTaskNames.zipWithNext().forEach { (previousTaskName, nextTaskName) ->
+    tasks.named(nextTaskName).configure {
+        mustRunAfter(previousTaskName)
+    }
+}
+
+tasks.register("jibDockerBuildPlatformImages") {
+    group = "jib"
+    description = "Builds individual Spark Platform variant images and compatible combined images."
+    dependsOn(platformImageBuildTaskNames)
+}
+
 tasks.matching { it.name in jibImageTaskNames }.configureEach {
     dependsOn(syncPlatformJars)
+    doFirst {
+        sparkBaseImage(platformLine.get(), variants.get())
+    }
 
     // Jib 3.5.x image tasks still read Gradle project/configuration state while executing.
     // Keep that incompatibility local to image builds so callers do not have to remember

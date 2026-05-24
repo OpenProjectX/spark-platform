@@ -57,9 +57,8 @@ env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark3-paimon:run --no-configurat
 Build a platform image:
 
 ```bash
-env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuild \
-  -PsparkPlatform.line=spark4 \
-  -PsparkPlatform.variants=iceberg,hudi
+env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuildPlatformImages \
+  -PsparkPlatform.line=spark4
 ```
 
 ## Adding a Managed Dependency

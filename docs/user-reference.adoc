@@ -189,7 +189,7 @@ The current version matrix is defined in `gradle/libs.versions.toml`.
 Optional runtime families currently represented in the catalog:
 
 * Iceberg `1.10.0`
-* Hudi `1.0.2`
+* Hudi `1.2.0`
 * Paimon `1.4.1`
 * OpenLineage `1.39.0`
 
@@ -264,17 +264,22 @@ Only variant jars are layered into the Spark image. Spark, Hadoop, Scala, SLF4J,
 snappy, and the standard `org.lz4` provider are treated as base-image-provided
 dependencies and are not copied from Gradle resolution output.
 
-Build a Spark 4 image with Iceberg:
+Build the default Spark 4 platform images:
 
 [source,bash]
 ----
-env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuild \
-  -PsparkPlatform.line=spark4 \
-  -PsparkPlatform.variants=iceberg \
-  -PsparkPlatform.imageTag=spark4-0.1.0-SNAPSHOT
+env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuildPlatformImages \
+  -PsparkPlatform.line=spark4
 ----
 
-Build with multiple variants:
+The aggregate task builds each selected variant individually, then builds one
+combined image for each Scala-compatible variant group after applying the
+line-specific isolation rules in `platform-image/build.gradle.kts`. For Spark 4
+defaults, that means individual `iceberg`, `hudi`, `paimon`, and `openlineage`
+images, plus one combined `iceberg-hudi-paimon-openlineage` image. For Spark 3,
+Paimon is isolated from combined images because that variant is Scala 2.12-only.
+
+Build one explicit variant set:
 
 [source,bash]
 ----
@@ -287,13 +292,15 @@ By default, the platform image uses:
 
 * base image: `spark:<spark-version>-scala<scala-binary-version>-java17-python3-r-ubuntu`
 * target image: `ghcr.io/openprojectx/spark-platform`
-* target tag: `<line>-<project.version>`
+* target tag: `<line>-<variant-or-variants>-<project.version>`
 * extra jars path: `/opt/spark/jars`
 
 Variant sets must use a single Scala binary version so they match one Apache
-Spark base image. Build separate platform images for incompatible Scala variant
-sets. For example, Spark 3 Paimon uses Scala 2.12 and must not be combined with
-Spark 3 variants that require Scala 2.13.
+Spark base image. The aggregate task derives compatibility from the Scala
+binary versions in the variant bundles, so incompatible variants are built
+individually or in separate compatible groups instead of being forced into one
+image. For example, a Scala 2.12-only variant will not be combined with Scala
+2.13 variants.
 
 `jibDockerBuild` writes the image to the local Docker daemon. It does not create
 a tar file in the build directory.
@@ -301,8 +308,8 @@ a tar file in the build directory.
 [source,bash]
 ----
 docker images ghcr.io/openprojectx/spark-platform
-docker inspect ghcr.io/openprojectx/spark-platform:spark4-0.1.0-SNAPSHOT
-docker run --rm --entrypoint sh ghcr.io/openprojectx/spark-platform:spark4-0.1.0-SNAPSHOT \
+docker inspect ghcr.io/openprojectx/spark-platform:spark4-iceberg-0.1.1-SNAPSHOT
+docker run --rm --entrypoint sh ghcr.io/openprojectx/spark-platform:spark4-iceberg-0.1.1-SNAPSHOT \
   -c 'ls -1 /opt/spark/jars | sort'
 ----
 
