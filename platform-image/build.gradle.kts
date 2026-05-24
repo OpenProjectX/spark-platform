@@ -63,6 +63,7 @@ val baseProvidedGroups = setOf(
     "org.slf4j",
     "org.xerial.snappy"
 )
+val jibImageTaskNames = setOf("jib", "jibDockerBuild", "jibBuildTar")
 
 fun ModuleComponentIdentifier.matches(coordinate: ModuleCoordinate): Boolean {
     return group == coordinate.group && module == coordinate.name
@@ -190,10 +191,13 @@ jib {
     }
 }
 
-tasks.named("jib").configure {
+tasks.matching { it.name in jibImageTaskNames }.configureEach {
     dependsOn(syncPlatformJars)
-}
 
-tasks.named("jibDockerBuild").configure {
-    dependsOn(syncPlatformJars)
+    // Jib 3.5.x image tasks still read Gradle project/configuration state while executing.
+    // Keep that incompatibility local to image builds so callers do not have to remember
+    // a special command line flag just to avoid reusing a broken configuration-cache entry.
+    notCompatibleWithConfigurationCache(
+        "Jib image tasks access Gradle Project/runtimeClasspath state at execution time when configuration cache is reused."
+    )
 }

@@ -88,9 +88,23 @@ Build the Spark 4 platform image locally with:
 ```bash
 env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuild \
   -PsparkPlatform.line=spark4 \
-  -PsparkPlatform.variants=iceberg
+  -PsparkPlatform.variants=iceberg \
+  -PsparkPlatform.imageTag=spark4-0.1.0-SNAPSHOT
 ```
 
 Platform images use Apache Spark base images such as
 `spark:4.0.1-scala2.13-java17-python3-r-ubuntu` and layer only the selected
 variant jars into `/opt/spark/jars`.
+
+`jibDockerBuild` writes to the local Docker daemon. Inspect a built image with:
+
+```bash
+docker inspect ghcr.io/openprojectx/spark-platform:spark4-0.1.0-SNAPSHOT
+docker run --rm --entrypoint sh ghcr.io/openprojectx/spark-platform:spark4-0.1.0-SNAPSHOT \
+  -c 'ls -1 /opt/spark/jars | sort'
+```
+
+The Jib image tasks are not compatible with Gradle configuration-cache reuse in
+the current toolchain, so the build marks those tasks incompatible and Gradle
+discards their configuration-cache entries. This does not disable Gradle's build
+cache or Jib's image layer reuse.

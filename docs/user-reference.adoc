@@ -30,8 +30,8 @@ Local build::
 
 Platform image::
   A container image built by the `platform-image` module. It places selected
-  platform jars under `/opt/spark-platform/jars` and sets
-  `SPARK_EXTRA_CLASSPATH=/opt/spark-platform/jars/*`.
+  variant jars under `/opt/spark/jars` on top of the matching Apache Spark
+  base image.
 
 == Applying the Plugin
 
@@ -294,6 +294,26 @@ Variant sets must use a single Scala binary version so they match one Apache
 Spark base image. Build separate platform images for incompatible Scala variant
 sets. For example, Spark 3 Paimon uses Scala 2.12 and must not be combined with
 Spark 3 variants that require Scala 2.13.
+
+`jibDockerBuild` writes the image to the local Docker daemon. It does not create
+a tar file in the build directory.
+
+[source,bash]
+----
+docker images ghcr.io/openprojectx/spark-platform
+docker inspect ghcr.io/openprojectx/spark-platform:spark4-0.1.0-SNAPSHOT
+docker run --rm --entrypoint sh ghcr.io/openprojectx/spark-platform:spark4-0.1.0-SNAPSHOT \
+  -c 'ls -1 /opt/spark/jars | sort'
+----
+
+The current Jib image tasks are not compatible with Gradle configuration-cache
+reuse. The platform-image build marks `jib`, `jibDockerBuild`, and `jibBuildTar`
+as incompatible so a normal invocation does not reuse a stale broken
+configuration-cache entry. Gradle will still execute the image task each time
+because Jib does not declare Gradle task outputs for `jibDockerBuild`, but this
+does not mean the image is rebuilt from scratch: Gradle's build cache remains
+enabled for other tasks, and Jib/Docker still reuse base image layers and Jib's
+layer cache.
 
 == Application Images
 
