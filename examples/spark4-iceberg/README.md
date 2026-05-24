@@ -3,7 +3,9 @@
 This example is part of the multi-project build in `examples`.
 The examples build applies the plugin from the repository checkout via `includeBuild("..")`.
 It selects `sparkPlatform.line = spark4` with the `iceberg` variant. The plugin
-supplies Spark, Hadoop, and Iceberg from the platform-owned dependency bundles.
+supplies Spark, Hadoop, and Iceberg constraints from the platform-owned bundles;
+the example opts into the Spark SQL and Iceberg APIs with versionless
+`sparkPlatform` dependencies.
 
 ```bash
 cd ..

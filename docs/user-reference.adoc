@@ -21,9 +21,9 @@ Spark line::
   `spark-platform-<line>-managed`.
 
 Platform-owned dependency::
-  A Spark, Hadoop, Scala, or variant runtime artifact added by the plugin from
-  the selected line and variants. Application builds do not declare these
-  coordinates directly.
+  A Spark, Hadoop, Scala, or variant runtime artifact whose version is owned by
+  Spark Platform. Application builds may opt into these coordinates on the
+  `sparkPlatform` configuration, but they do not declare versions for them.
 
 Application-owned dependency::
   A library that belongs to the application itself and is not part of the Spark
@@ -77,15 +77,27 @@ sparkPlatform {
 ----
 
 The plugin then adds the platform-owned dependencies from
-`gradle/libs.versions.toml` to the `sparkPlatform` configuration and applies
-strict constraints from the same catalog. For the example above, the selected
-bundles include Spark 4, Hadoop for Spark 4, and the Spark 4 Iceberg runtime.
+`gradle/libs.versions.toml` as strict constraints. For the example above, the
+selected constraint bundles include Spark 4, Hadoop for Spark 4, and the Spark 4
+Iceberg runtime.
 
-Application builds should not declare Spark, Hadoop, Scala, Iceberg, Hudi,
-Paimon, or OpenLineage runtime coordinates directly. They also should not put
-versions for platform-owned artifacts in build scripts. To change that stack,
+Application builds then opt into the platform-owned APIs they compile against by
+using the `sparkPlatform` configuration without versions:
+
+[source,kotlin]
+----
+dependencies {
+    sparkPlatform("org.apache.spark:spark-sql_2.13")
+    sparkPlatform("org.apache.iceberg:iceberg-spark-runtime-4.0_2.13")
+}
+----
+
+Application builds should not put versions for Spark, Hadoop, Scala, Iceberg,
+Hudi, Paimon, or OpenLineage artifacts in build scripts. To change that stack,
 change the platform catalog and platform image, then let applications select the
-updated line or variant.
+updated line or variant. The selected variants also determine the application
+base image tag, so a single `iceberg` variant uses the Iceberg platform image
+and a multi-variant selection uses the matching combined platform image.
 
 Application-owned libraries still use normal Gradle configurations:
 
@@ -99,8 +111,9 @@ dependencies {
 == Local Versus Official Builds
 
 For local builds, `sparkPlatform` and `sparkPlatformBom` extend
-`implementation`. The plugin adds platform-owned dependencies and strict
-constraints to `sparkPlatform` directly:
+`implementation`. The plugin adds strict constraints to `sparkPlatform`, and
+the user-selected `sparkPlatform(...)` dependencies become local runtime
+dependencies:
 
 [source,text]
 ----
@@ -166,7 +179,8 @@ sparkPlatform {
 
 | `officialBuild`
 | CI-derived
-| Chooses whether managed dependencies are `implementation` or `compileOnly`.
+| Chooses whether user-selected `sparkPlatform` dependencies are exposed through
+`implementation` or `compileOnly`.
 
 | `localPlatformImage`
 | `true` only for direct `jibDockerBuild`, otherwise `false`
@@ -176,9 +190,9 @@ builds that first build the platform image locally.
 
 | `variants`
 | empty list
-| Optional runtime variants. The plugin uses these to add variant runtime
-dependencies and strict constraints. The `platform-image` module also accepts
-them through the `sparkPlatform.variants` Gradle property.
+| Optional runtime variants. The plugin uses these to add strict constraints,
+JVM option rules, and the application base image tag. The `platform-image`
+module also accepts them through the `sparkPlatform.variants` Gradle property.
 |===
 
 == Gradle Properties
@@ -285,13 +299,13 @@ dependencies {
 ----
 
 Direct BOM use is an advanced escape hatch. The preferred contract is the
-plugin, where the application selects `line` and `variants` and does not choose
-platform-owned coordinates.
+plugin, where the application selects `line` and `variants`, then adds
+versionless `sparkPlatform(...)` dependencies for the platform APIs it uses.
 
-When using the plugin, the selected dependencies and strict constraints are
-added directly to `sparkPlatform`. The `sparkPlatformBom` configuration remains
-available when a build intentionally wants to add a published BOM, but normal
-application builds should not need it.
+When using the plugin, selected bundles contribute strict constraints to
+`sparkPlatform`. The `sparkPlatformBom` configuration remains available when a
+build intentionally wants to add a published BOM, but normal application builds
+should not need it.
 
 The plugin and BOM publish strict dependency constraints from the version
 catalog. This keeps transitive dependencies from moving a Spark line away from
@@ -421,7 +435,8 @@ env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4-iceberg:run --no-configura
 The example:
 
 * selects `spark4`
-* receives Spark SQL, Hadoop, and Iceberg from the selected platform bundles
+* adds versionless `sparkPlatform` dependencies for Spark SQL and Iceberg
+* receives Spark SQL, Hadoop, and Iceberg versions from the selected platform constraints
 * uses a local Iceberg Hadoop catalog
 * uses Gradle Java toolchains for JDK 17 execution
 
@@ -439,7 +454,8 @@ The example:
 
 * selects `spark3`
 * selects the isolated `paimon` variant-managed bundle
-* receives Scala 2.12 Spark and Paimon artifacts from the platform bundle
+* adds versionless `sparkPlatform` dependencies for Spark SQL and Paimon
+* receives Scala 2.12 Spark and Paimon versions from the platform constraints
 * relies on Spark Platform's built-in LZ4 capability resolution for Paimon
 * enables `org.apache.paimon.spark.extensions.PaimonSparkSessionExtensions`
 * uses Gradle Java toolchains for JDK 17 execution
@@ -457,9 +473,10 @@ Missing bundle error::
 
 Dependency version appears in a build script::
   If the dependency is platform-owned, move the version to
-  `gradle/libs.versions.toml` and select it through `sparkPlatform.line` or
-  `sparkPlatform.variants`. Application-owned libraries can still use normal
-  Gradle dependency declarations.
+  `gradle/libs.versions.toml`, select the matching `sparkPlatform.line` or
+  `sparkPlatform.variants`, and add only the versionless coordinate to
+  `sparkPlatform`. Application-owned libraries can still use normal Gradle
+  dependency declarations.
 
 IDE uses a newer JDK::
   Configure the Gradle JVM to JDK 17. Example compilation and `JavaExec` tasks

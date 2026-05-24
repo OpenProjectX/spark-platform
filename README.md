@@ -12,13 +12,15 @@ The project provides:
 - a platform base-image module that packages selected runtime jars
 - a version matrix for Spark 3, Spark 4, Hadoop, Iceberg, Hudi, Paimon, and OpenLineage
 
-The plugin adds platform-owned dependencies from the selected line and variants.
-Local builds get those dependencies on `implementation` so the app can run from
-an IDE or Gradle. Official builds get them on `compileOnly` because the platform
-image provides them at runtime. JVM smoke runs still receive a platform runtime
+The plugin adds platform-owned constraints from the selected line and variants.
+Application projects opt into the Spark or variant APIs they compile against by
+adding versionless dependencies to `sparkPlatform`. Local builds expose those
+dependencies through `implementation` so the app can run from an IDE or Gradle.
+Official builds expose them through `compileOnly` because the platform image
+provides them at runtime. JVM smoke runs still receive a platform runtime
 classpath in CI, so tests do not depend on whatever happened to be installed on
-a developer machine. Application builds should manage only their own classes
-and application-specific libraries.
+a developer machine. Application builds should manage only their own classes,
+application-specific libraries, and the platform APIs they actually use.
 
 ## Quick Start
 
@@ -35,6 +37,11 @@ sparkPlatform {
     line.set("spark4")
     variants.set(listOf("iceberg"))
     platformVersion.set("0.1.1-SNAPSHOT")
+}
+
+dependencies {
+    sparkPlatform("org.apache.spark:spark-sql_2.13")
+    sparkPlatform("org.apache.iceberg:iceberg-spark-runtime-4.0_2.13")
 }
 ```
 

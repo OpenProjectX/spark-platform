@@ -91,10 +91,6 @@ class SparkPlatformPlugin : Plugin<Project> {
             val selectedBundles = catalog.managedBundles(extension.line.get(), extension.variants.get())
             selectedBundles.forEach { bundle ->
                 bundle.forEach { dependency ->
-                    project.dependencies.add(
-                        MANAGED_CONFIGURATION,
-                        "${dependency.module.group}:${dependency.module.name}"
-                    )
                     project.dependencies.constraints.add(
                         MANAGED_CONFIGURATION,
                         "${dependency.module.group}:${dependency.module.name}"
