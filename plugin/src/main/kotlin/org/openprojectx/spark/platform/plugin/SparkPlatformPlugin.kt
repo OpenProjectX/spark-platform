@@ -10,10 +10,12 @@ import org.gradle.api.artifacts.MinimalExternalModuleDependency
 import org.gradle.api.artifacts.VersionCatalog
 import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+import org.gradle.api.tasks.JavaExec
 import org.gradle.api.plugins.JavaPlugin
 import org.openprojectx.spark.platform.core.ModuleCoordinate
 import org.openprojectx.spark.platform.core.SparkPlatformCapabilityResolutions
 import org.openprojectx.spark.platform.core.SparkPlatformCatalog
+import org.openprojectx.spark.platform.core.SparkPlatformJvmOptions
 
 class SparkPlatformPlugin : Plugin<Project> {
     override fun apply(project: Project) {
@@ -47,6 +49,7 @@ class SparkPlatformPlugin : Plugin<Project> {
 
         project.plugins.withType(JavaPlugin::class.java) {
             wireManagedConfigurations(project, extension, managed, bom)
+            configureJavaExec(project, extension)
         }
 
         project.pluginManager.apply(JibPlugin::class.java)
@@ -122,9 +125,21 @@ class SparkPlatformPlugin : Plugin<Project> {
         val jib = project.extensions.findByType(JibExtension::class.java) ?: return
         val image = platformBaseImageReference(extension)
         val toImage = "${project.group}/${project.name}:${project.version}".lowercase()
+        val jvmFlags = managedJvmOptions(extension)
 
         jib.from { it.setImage(image) }
         jib.to { it.setImage(toImage) }
+        jib.container {
+            it.setJvmFlags((jvmFlags + it.jvmFlags).distinct())
+        }
+    }
+
+    private fun configureJavaExec(project: Project, extension: SparkPlatformExtension) {
+        project.afterEvaluate {
+            project.tasks.withType(JavaExec::class.java).configureEach {
+                it.jvmArgs(managedJvmOptions(extension))
+            }
+        }
     }
 
     private fun platformBaseImageReference(extension: SparkPlatformExtension): String {
@@ -134,6 +149,10 @@ class SparkPlatformPlugin : Plugin<Project> {
         } else {
             "docker://$image"
         }
+    }
+
+    private fun managedJvmOptions(extension: SparkPlatformExtension): List<String> {
+        return SparkPlatformJvmOptions.defaults(extension.line.get(), extension.variants.get())
     }
 
     private fun Project.isOfficialBuild(): Boolean {

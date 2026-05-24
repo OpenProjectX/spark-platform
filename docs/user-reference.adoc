@@ -403,6 +403,6 @@ IDE uses a newer JDK::
   example/project `gradle.properties`.
 
 Java module access error while running Spark or Iceberg::
-  Add the required JVM `--add-opens` flag to the JavaExec or application
-  configuration. The Spark 4 example uses
-  `--add-opens=java.base/java.nio=ALL-UNNAMED`.
+  The plugin applies Spark's Java module options to managed `JavaExec` tasks and
+  Jib application image entrypoints. If a new runtime family needs additional
+  options, add a JVM option rule in the core module.

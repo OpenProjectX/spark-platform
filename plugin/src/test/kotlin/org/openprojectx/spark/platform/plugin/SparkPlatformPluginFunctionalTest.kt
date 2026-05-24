@@ -86,6 +86,7 @@ class SparkPlatformPluginFunctionalTest {
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":printJib")?.outcome)
         assertTrue(result.output.contains("fromImage=docker://registry.example.com/spark-platform:spark4-iceberg-1.2.3"))
+        assertTrue(result.output.contains("jibJvmFlag=--add-opens=java.base/java.nio=ALL-UNNAMED"))
     }
 
     @Test
@@ -104,6 +105,23 @@ class SparkPlatformPluginFunctionalTest {
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":printJib")?.outcome)
         assertTrue(result.output.contains("fromImage=registry.example.com/spark-platform:spark4-iceberg-1.2.3"))
+    }
+
+    @Test
+    fun `plugin configures JavaExec with Spark module options`() {
+        writeFixture(
+            """
+            sparkPlatform {
+                line.set("spark4")
+                variants.set(listOf("iceberg"))
+            }
+            """.trimIndent()
+        )
+
+        val result = gradleRunner("printJavaExec").build()
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":printJavaExec")?.outcome)
+        assertTrue(result.output.contains("javaExecJvmArg=--add-opens=java.base/java.nio=ALL-UNNAMED"))
     }
 
     private fun writeFixture(extraBuildScript: String = "") {
@@ -159,6 +177,17 @@ class SparkPlatformPluginFunctionalTest {
                     val from = jib.javaClass.methods.first { it.name == "getFrom" && it.parameterCount == 0 }.invoke(jib)
                     val image = from.javaClass.methods.first { it.name == "getImage" && it.parameterCount == 0 }.invoke(from)
                     println("fromImage=${'$'}image")
+                    val container = jib.javaClass.methods.first { it.name == "getContainer" && it.parameterCount == 0 }.invoke(jib)
+                    val jvmFlags = container.javaClass.methods.first { it.name == "getJvmFlags" && it.parameterCount == 0 }.invoke(container) as List<*>
+                    jvmFlags.forEach { println("jibJvmFlag=${'$'}it") }
+                }
+            }
+
+            tasks.register<JavaExec>("printJavaExec") {
+                mainClass.set("org.example.DoesNotRun")
+                doFirst {
+                    jvmArgs.orEmpty().forEach { println("javaExecJvmArg=${'$'}it") }
+                    throw org.gradle.api.tasks.StopExecutionException()
                 }
             }
             """.trimIndent()

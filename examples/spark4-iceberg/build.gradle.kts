@@ -16,5 +16,4 @@ dependencies {
 
 application {
     mainClass.set("org.openprojectx.spark.platform.examples.spark4.Spark4IcebergExample")
-    applicationDefaultJvmArgs = listOf("--add-opens=java.base/java.nio=ALL-UNNAMED")
 }

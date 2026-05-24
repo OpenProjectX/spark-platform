@@ -16,7 +16,4 @@ dependencies {
 
 application {
     mainClass.set("org.openprojectx.spark.platform.examples.spark3.paimon.Spark3PaimonExample")
-    applicationDefaultJvmArgs = listOf(
-        "--add-exports=java.base/sun.nio.ch=ALL-UNNAMED"
-    )
 }
