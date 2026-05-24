@@ -107,8 +107,26 @@ nexusPublishing {
     }
 }
 
+tasks.register<Exec>("integrationTest") {
+    group = "verification"
+    description = "Runs examples through JVM and Docker integration paths."
+    workingDir = layout.projectDirectory.dir("examples").asFile
+    commandLine(
+        layout.projectDirectory.file("gradlew").asFile.absolutePath,
+        "integration",
+        "--no-configuration-cache"
+    )
+}
+
 configure<ReleaseExtension> {
-    buildTasks.set(listOf("publishToSonatype", "closeAndReleaseSonatypeStagingRepository"))
+    buildTasks.set(
+        listOf(
+            "integrationTest",
+            "publishToSonatype",
+            "closeAndReleaseSonatypeStagingRepository",
+            ":platform-image:jibPublishAllPlatformImages"
+        )
+    )
     versionPropertyFile.set("gradle.properties")
     tagTemplate.set("\$name-\$version")
 

@@ -243,34 +243,89 @@ jib {
 }
 
 val platformImageBuildSpecs = buildSpecs(platformLine.get(), variants.get())
-val platformImageBuildTaskNames = platformImageBuildSpecs.map { spec ->
-    val taskName = "jibDockerBuild${taskNameSuffix(spec.name)}PlatformImage"
+
+fun registerPlatformImageTasks(
+    jibTaskName: String,
+    aggregateTaskName: String,
+    action: String
+): List<String> {
+    val taskNames = platformImageBuildSpecs.map { spec ->
+        val taskName = "$jibTaskName${taskNameSuffix(spec.name)}PlatformImage"
+        tasks.register<Exec>(taskName) {
+            group = "jib"
+            description = "$action the ${spec.name} Spark Platform image."
+            workingDir = rootDir
+            commandLine(
+                rootProject.layout.projectDirectory.file("gradlew").asFile.absolutePath,
+                ":platform-image:$jibTaskName",
+                "--no-configuration-cache",
+                "-PsparkPlatform.line=${platformLine.get()}",
+                "-PsparkPlatform.variants=${spec.variants.joinToString(",")}",
+                "-PsparkPlatform.imageRepository=${imageRepository.get()}",
+                "-PsparkPlatform.imageTag=${platformImageTag(platformLine.get(), spec.variants)}",
+                "-PsparkPlatform.baseImageSuffix=${baseImageSuffix.get()}"
+            )
+        }
+        taskName
+    }
+
+    taskNames.zipWithNext().forEach { (previousTaskName, nextTaskName) ->
+        tasks.named(nextTaskName).configure {
+            mustRunAfter(previousTaskName)
+        }
+    }
+
+    tasks.register(aggregateTaskName) {
+        group = "jib"
+        description = "$action individual Spark Platform variant images and compatible combined images."
+        dependsOn(taskNames)
+    }
+
+    return taskNames
+}
+
+registerPlatformImageTasks(
+    "jibDockerBuild",
+    "jibDockerBuildPlatformImages",
+    "Builds"
+)
+
+registerPlatformImageTasks(
+    "jib",
+    "jibPublishPlatformImages",
+    "Publishes"
+)
+
+val jibPublishAllPlatformImageTaskNames = defaultImageVariantsByLine.keys.map { line ->
+    val normalizedLine = line.trim().lowercase()
+    val taskName = "jibPublish${taskNameSuffix(normalizedLine)}PlatformImages"
     tasks.register<Exec>(taskName) {
         group = "jib"
-        description = "Builds the ${spec.name} Spark Platform image in the local Docker daemon."
+        description = "Publishes Spark Platform images for $normalizedLine."
         workingDir = rootDir
         commandLine(
             rootProject.layout.projectDirectory.file("gradlew").asFile.absolutePath,
-            ":platform-image:jibDockerBuild",
-            "-PsparkPlatform.line=${platformLine.get()}",
-            "-PsparkPlatform.variants=${spec.variants.joinToString(",")}",
+            ":platform-image:jibPublishPlatformImages",
+            "--no-configuration-cache",
+            "-PsparkPlatform.line=$normalizedLine",
+            "-PsparkPlatform.variants=${defaultImageVariantsByLine.getValue(normalizedLine).joinToString(",")}",
             "-PsparkPlatform.imageRepository=${imageRepository.get()}",
-            "-PsparkPlatform.imageTag=${platformImageTag(platformLine.get(), spec.variants)}",
             "-PsparkPlatform.baseImageSuffix=${baseImageSuffix.get()}"
         )
     }
     taskName
 }
-platformImageBuildTaskNames.zipWithNext().forEach { (previousTaskName, nextTaskName) ->
+
+jibPublishAllPlatformImageTaskNames.zipWithNext().forEach { (previousTaskName, nextTaskName) ->
     tasks.named(nextTaskName).configure {
         mustRunAfter(previousTaskName)
     }
 }
 
-tasks.register("jibDockerBuildPlatformImages") {
+tasks.register("jibPublishAllPlatformImages") {
     group = "jib"
-    description = "Builds individual Spark Platform variant images and compatible combined images."
-    dependsOn(platformImageBuildTaskNames)
+    description = "Publishes Spark Platform images for every supported Spark line."
+    dependsOn(jibPublishAllPlatformImageTaskNames)
 }
 
 tasks.matching { it.name in jibImageTaskNames }.configureEach {
