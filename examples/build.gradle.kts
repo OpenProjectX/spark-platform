@@ -6,6 +6,22 @@ allprojects {
     version = "0.1.1-SNAPSHOT"
 }
 
+val integrationJvm = tasks.register("integrationJvm") {
+    group = "verification"
+    description = "Runs every example as a JVM application."
+}
+
+val integrationDocker = tasks.register("integrationDocker") {
+    group = "verification"
+    description = "Builds every example image and runs it with Docker."
+}
+
+tasks.register("integration") {
+    group = "verification"
+    description = "Runs every example through JVM and Docker integration paths."
+    dependsOn(integrationJvm, integrationDocker)
+}
+
 fun taskSuffix(value: String): String =
     value
         .split(Regex("[^A-Za-z0-9]+"))
@@ -21,6 +37,9 @@ fun localPlatformImageTag(line: String, variants: List<String>, platformVersion:
     val variantPart = variants.joinToString("-") { normalizedImagePart(it) }.ifBlank { "base" }
     return "${normalizedImagePart(line)}-$variantPart-${platformVersion.trim()}"
 }
+
+fun applicationImage(project: Project): String =
+    "${project.group}/${project.name}:${project.version}".lowercase()
 
 fun extensionGetter(extension: Any, propertyName: String): Any {
     val getterName = "get${propertyName.replaceFirstChar { it.uppercaseChar() }}"
@@ -72,6 +91,18 @@ subprojects {
         }
     }
 
+    plugins.withId("application") {
+        val runJvmIntegration = tasks.register("integrationJvm") {
+            group = "verification"
+            description = "Runs ${project.path} as a JVM application."
+            dependsOn(tasks.named("run"))
+        }
+
+        rootProject.tasks.named("integrationJvm") {
+            dependsOn(runJvmIntegration)
+        }
+    }
+
     plugins.withId("com.google.cloud.tools.jib") {
         afterEvaluate {
             val sparkPlatform = extensions.findByName("sparkPlatform") ?: return@afterEvaluate
@@ -105,6 +136,17 @@ subprojects {
                 .configureEach {
                     dependsOn(buildPlatformImage)
                 }
+
+            val runDockerIntegration = tasks.register<Exec>("integrationDocker") {
+                group = "verification"
+                description = "Builds the ${project.path} Docker image and runs it."
+                dependsOn(tasks.named("jibDockerBuild"))
+                commandLine("docker", "run", "--rm", applicationImage(project))
+            }
+
+            rootProject.tasks.named("integrationDocker") {
+                dependsOn(runDockerIntegration)
+            }
         }
     }
 }

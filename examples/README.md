@@ -19,7 +19,13 @@ Run from this directory:
 env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4-iceberg:compileJava --no-configuration-cache
 env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4-iceberg:run --no-configuration-cache
 env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark3-paimon:run --no-configuration-cache
+env GRADLE_USER_HOME=/data/.gradle ../gradlew integration --no-configuration-cache
 ```
+
+Use `integrationJvm` to run every example through Gradle's application plugin
+and `integrationDocker` to build every example image and run it with Docker.
+Each example also exposes `:example-name:integrationJvm` and
+`:example-name:integrationDocker`.
 
 The examples build pins Gradle and Java execution to JDK 17 for IDE imports and
 local runs.
