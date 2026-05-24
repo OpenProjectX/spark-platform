@@ -2,7 +2,7 @@ import org.gradle.jvm.toolchain.JavaToolchainService
 
 allprojects {
     group = "org.openprojectx.spark.platform.examples"
-    version = "0.1.0-SNAPSHOT"
+    version = "0.1.1-SNAPSHOT"
 }
 
 subprojects {

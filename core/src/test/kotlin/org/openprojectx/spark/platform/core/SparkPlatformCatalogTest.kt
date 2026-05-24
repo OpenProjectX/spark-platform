@@ -18,4 +18,12 @@ class SparkPlatformCatalogTest {
     fun `parses variant csv values`() {
         assertEquals(listOf("iceberg", "hudi"), SparkPlatformCatalog.parseVariants("iceberg, hudi,iceberg"))
     }
+
+    @Test
+    fun `derives image tag from platform line variants and version`() {
+        assertEquals(
+            "spark4-iceberg-hudi-0.1.1-SNAPSHOT",
+            SparkPlatformCatalog.imageTag(" Spark4 ", listOf("Iceberg", "Hudi"), "0.1.1-SNAPSHOT")
+        )
+    }
 }

@@ -27,7 +27,7 @@ class SparkPlatformPlugin : Plugin<Project> {
         extension.platformVersion.convention(project.provider { project.version.toString() })
         extension.platformImage.convention("ghcr.io/openprojectx/spark-platform")
         extension.imageTag.convention(project.provider {
-            SparkPlatformCatalog.imageTag(extension.line.get(), extension.platformVersion.get())
+            SparkPlatformCatalog.imageTag(extension.line.get(), extension.variants.get(), extension.platformVersion.get())
         })
         extension.variants.convention(emptyList())
 
@@ -120,11 +120,20 @@ class SparkPlatformPlugin : Plugin<Project> {
 
     private fun configureJib(project: Project, extension: SparkPlatformExtension) {
         val jib = project.extensions.findByType(JibExtension::class.java) ?: return
-        val image = "${extension.platformImage.get()}:${extension.imageTag.get()}"
+        val image = platformBaseImageReference(extension)
         val toImage = "${project.group}/${project.name}:${project.version}".lowercase()
 
         jib.from { it.setImage(image) }
         jib.to { it.setImage(toImage) }
+    }
+
+    private fun platformBaseImageReference(extension: SparkPlatformExtension): String {
+        val image = "${extension.platformImage.get()}:${extension.imageTag.get()}"
+        return if (extension.officialBuild.get() || image.startsWith("docker://")) {
+            image
+        } else {
+            "docker://$image"
+        }
     }
 
     private fun Project.isOfficialBuild(): Boolean {

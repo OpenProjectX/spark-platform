@@ -102,9 +102,9 @@ Configure the plugin with the `sparkPlatform` extension.
 ----
 sparkPlatform {
     line.set("spark4")
-    platformVersion.set("0.1.0-SNAPSHOT")
+    variants.set(listOf("iceberg"))
+    platformVersion.set("0.1.1-SNAPSHOT")
     platformImage.set("ghcr.io/openprojectx/spark-platform")
-    imageTag.set("spark4-0.1.0-SNAPSHOT")
     officialBuild.set(false)
 }
 ----
@@ -126,7 +126,7 @@ sparkPlatform {
 | Base image repository used by Jib for application images.
 
 | `imageTag`
-| `<line>-<platformVersion>`
+| `<line>-<variant-or-variants>-<platformVersion>`
 | Base image tag used by Jib for application images.
 
 | `officialBuild`
@@ -332,6 +332,12 @@ The application image base is:
 ----
 <sparkPlatform.platformImage>:<sparkPlatform.imageTag>
 ----
+
+For local builds, the plugin prefixes the base image with `docker://` so
+`jibDockerBuild` reads the platform image from the local Docker daemon instead
+of checking the remote registry. Official builds, enabled with
+`-PsparkPlatform.officialBuild=true` or common CI environment variables, keep
+the normal registry reference.
 
 The default application image target is:
 

@@ -7,7 +7,6 @@ plugins {
 sparkPlatform {
     line.set("spark3")
     variants.set(listOf("paimon"))
-    platformVersion.set("0.1.0-SNAPSHOT")
 }
 
 dependencies {

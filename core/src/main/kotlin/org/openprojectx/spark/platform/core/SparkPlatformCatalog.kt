@@ -27,7 +27,8 @@ object SparkPlatformCatalog {
         return "${variantBundle(line, variant)}-managed"
     }
 
-    fun imageTag(line: String, platformVersion: String): String {
-        return "${normalizeLine(line)}-${platformVersion.trim()}"
+    fun imageTag(line: String, variants: Iterable<String>, platformVersion: String): String {
+        val variantPart = normalizeVariants(variants).joinToString("-").ifBlank { "base" }
+        return "${normalizeLine(line)}-$variantPart-${platformVersion.trim()}"
     }
 }

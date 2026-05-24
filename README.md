@@ -29,7 +29,8 @@ plugins {
 
 sparkPlatform {
     line.set("spark4")
-    platformVersion.set("0.1.0-SNAPSHOT")
+    variants.set(listOf("iceberg"))
+    platformVersion.set("0.1.1-SNAPSHOT")
 }
 
 dependencies {

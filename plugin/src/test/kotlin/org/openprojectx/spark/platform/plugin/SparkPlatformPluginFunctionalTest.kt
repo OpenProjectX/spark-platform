@@ -75,8 +75,9 @@ class SparkPlatformPluginFunctionalTest {
         writeFixture(
             """
             sparkPlatform {
+                line.set("spark4")
+                variants.set(listOf("iceberg"))
                 platformImage.set("registry.example.com/spark-platform")
-                imageTag.set("spark4-test")
             }
             """.trimIndent()
         )
@@ -84,7 +85,25 @@ class SparkPlatformPluginFunctionalTest {
         val result = gradleRunner("printJib").build()
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":printJib")?.outcome)
-        assertTrue(result.output.contains("fromImage=registry.example.com/spark-platform:spark4-test"))
+        assertTrue(result.output.contains("fromImage=docker://registry.example.com/spark-platform:spark4-iceberg-1.2.3"))
+    }
+
+    @Test
+    fun `official build configures jib to use the registry platform base image`() {
+        writeFixture(
+            """
+            sparkPlatform {
+                line.set("spark4")
+                variants.set(listOf("iceberg"))
+                platformImage.set("registry.example.com/spark-platform")
+            }
+            """.trimIndent()
+        )
+
+        val result = gradleRunner("printJib", "-PsparkPlatform.officialBuild=true").build()
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":printJib")?.outcome)
+        assertTrue(result.output.contains("fromImage=registry.example.com/spark-platform:spark4-iceberg-1.2.3"))
     }
 
     private fun writeFixture(extraBuildScript: String = "") {
