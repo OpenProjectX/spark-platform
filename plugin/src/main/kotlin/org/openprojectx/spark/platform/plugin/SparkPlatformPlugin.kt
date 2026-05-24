@@ -47,6 +47,13 @@ class SparkPlatformPlugin : Plugin<Project> {
             it.isCanBeResolved = false
         }
 
+        project.configurations.create(JAVA_EXEC_RUNTIME_CONFIGURATION) {
+            it.description = "Resolvable Spark Platform runtime dependencies for JavaExec smoke runs in official builds."
+            it.isCanBeConsumed = false
+            it.isCanBeResolved = true
+            it.extendsFrom(managed, bom)
+        }
+
         project.plugins.withType(JavaPlugin::class.java) {
             wireManagedConfigurations(project, extension, managed, bom)
             configureJavaExec(project, extension)
@@ -75,17 +82,14 @@ class SparkPlatformPlugin : Plugin<Project> {
 
             project.configurations.named(targetConfiguration).configure { it.extendsFrom(managed, bom) }
 
-            project.dependencies.add(
-                BOM_CONFIGURATION,
-                project.dependencies.platform(
-                    "org.openprojectx.spark.platform:platform-bom:${extension.platformVersion.get()}"
-                )
-            )
-
             val catalog = project.versionCatalog()
             val selectedBundles = catalog.managedBundles(extension.line.get(), extension.variants.get())
             selectedBundles.forEach { bundle ->
                 bundle.forEach { dependency ->
+                    project.dependencies.add(
+                        MANAGED_CONFIGURATION,
+                        "${dependency.module.group}:${dependency.module.name}"
+                    )
                     project.dependencies.constraints.add(
                         MANAGED_CONFIGURATION,
                         "${dependency.module.group}:${dependency.module.name}"
@@ -123,7 +127,7 @@ class SparkPlatformPlugin : Plugin<Project> {
 
     private fun configureJib(project: Project, extension: SparkPlatformExtension) {
         val jib = project.extensions.findByType(JibExtension::class.java) ?: return
-        val image = platformBaseImageReference(extension)
+        val image = platformBaseImageReference(project, extension)
         val toImage = "${project.group}/${project.name}:${project.version}".lowercase()
         val jvmFlags = managedJvmOptions(extension)
 
@@ -138,16 +142,25 @@ class SparkPlatformPlugin : Plugin<Project> {
         project.afterEvaluate {
             project.tasks.withType(JavaExec::class.java).configureEach {
                 it.jvmArgs(managedJvmOptions(extension))
+                if (extension.officialBuild.get()) {
+                    it.classpath(project.configurations.named(JAVA_EXEC_RUNTIME_CONFIGURATION))
+                }
             }
         }
     }
 
-    private fun platformBaseImageReference(extension: SparkPlatformExtension): String {
+    private fun platformBaseImageReference(project: Project, extension: SparkPlatformExtension): String {
         val image = "${extension.platformImage.get()}:${extension.imageTag.get()}"
-        return if (extension.officialBuild.get() || image.startsWith("docker://")) {
+        return if ((extension.officialBuild.get() && !project.isJibDockerBuild()) || image.startsWith("docker://")) {
             image
         } else {
             "docker://$image"
+        }
+    }
+
+    private fun Project.isJibDockerBuild(): Boolean {
+        return gradle.startParameter.taskNames.any { taskName ->
+            taskName == "jibDockerBuild" || taskName.endsWith(":jibDockerBuild")
         }
     }
 
@@ -230,5 +243,6 @@ class SparkPlatformPlugin : Plugin<Project> {
     companion object {
         const val MANAGED_CONFIGURATION = "sparkPlatform"
         const val BOM_CONFIGURATION = "sparkPlatformBom"
+        const val JAVA_EXEC_RUNTIME_CONFIGURATION = "sparkPlatformJavaExecRuntime"
     }
 }

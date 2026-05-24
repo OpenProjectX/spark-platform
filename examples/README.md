@@ -27,5 +27,6 @@ and `integrationDocker` to build every example image and run it with Docker.
 Each example also exposes `:example-name:integrationJvm` and
 `:example-name:integrationDocker`.
 
-The examples build pins Gradle and Java execution to JDK 17 for IDE imports and
-local runs.
+The examples build uses Gradle Java toolchains for JDK 17. The example projects
+select Spark Platform lines and variants, and the plugin supplies the
+platform-owned Spark and variant runtime dependencies.

@@ -21,6 +21,7 @@ class SparkPlatformPluginFunctionalTest {
         assertEquals(TaskOutcome.SUCCESS, result.task(":printSparkPlatform")?.outcome)
         assertTrue(result.output.contains("implementationExtends=sparkPlatform,sparkPlatformBom"))
         assertTrue(result.output.contains("compileOnlyExtends="))
+        assertTrue(result.output.contains("dependency=org.apache.spark:spark-sql_2.13"))
         assertTrue(result.output.contains("constraint=org.apache.spark:spark-sql_2.13:3.5.7"))
     }
 
@@ -48,6 +49,7 @@ class SparkPlatformPluginFunctionalTest {
         val result = gradleRunner("printSparkPlatform").build()
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":printSparkPlatform")?.outcome)
+        assertTrue(result.output.contains("dependency=org.apache.spark:spark-sql_2.13"))
         assertTrue(result.output.contains("constraint=org.apache.spark:spark-sql_2.13:4.0.1"))
         assertTrue(result.output.contains("constraint=org.apache.hadoop:hadoop-client-api:3.4.1"))
     }
@@ -66,6 +68,8 @@ class SparkPlatformPluginFunctionalTest {
         val result = gradleRunner("printSparkPlatform").build()
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":printSparkPlatform")?.outcome)
+        assertTrue(result.output.contains("dependency=org.apache.spark:spark-sql_2.12"))
+        assertTrue(result.output.contains("dependency=org.apache.paimon:paimon-spark-3.5_2.12"))
         assertTrue(result.output.contains("constraint=org.apache.spark:spark-sql_2.12:3.5.7"))
         assertTrue(result.output.contains("constraint=org.apache.paimon:paimon-spark-3.5_2.12:1.4.1"))
     }
@@ -155,16 +159,15 @@ class SparkPlatformPluginFunctionalTest {
 
             $extraBuildScript
 
-            dependencies {
-                sparkPlatform("org.apache.spark:spark-sql_2.13")
-            }
-
             tasks.register("printSparkPlatform") {
                 doLast {
                     val implementationExtends = configurations.getByName("implementation").extendsFrom.joinToString(",") { it.name }
                     val compileOnlyExtends = configurations.getByName("compileOnly").extendsFrom.joinToString(",") { it.name }
                     println("implementationExtends=${'$'}implementationExtends")
                     println("compileOnlyExtends=${'$'}compileOnlyExtends")
+                    configurations.getByName("sparkPlatform").dependencies.forEach {
+                        println("dependency=${'$'}{it.group}:${'$'}{it.name}")
+                    }
                     configurations.getByName("sparkPlatform").dependencyConstraints.forEach {
                         println("constraint=${'$'}{it.group}:${'$'}{it.name}:${'$'}{it.version}")
                     }

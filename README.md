@@ -1,7 +1,9 @@
 # Spark Platform
 
 Spark Platform centralizes dependency and image management for Spark
-applications built with Gradle.
+applications built with Gradle. Application projects choose a Spark line and
+runtime variants; the platform owns Spark, Hadoop, Scala, and variant runtime
+artifacts so local, CI, and production builds resolve the same stack.
 
 The project provides:
 
@@ -10,15 +12,17 @@ The project provides:
 - a platform base-image module that packages selected runtime jars
 - a version matrix for Spark 3, Spark 4, Hadoop, Iceberg, Hudi, Paimon, and OpenLineage
 
-The plugin lets application builds declare Spark-platform dependencies without
-versions. Local builds get those dependencies on `implementation` so the app can
-run from an IDE or Gradle. Official builds get them on `compileOnly` because the
-platform image is expected to provide them at runtime.
+The plugin adds platform-owned dependencies from the selected line and variants.
+Local builds get those dependencies on `implementation` so the app can run from
+an IDE or Gradle. Official builds get them on `compileOnly` because the platform
+image provides them at runtime. JVM smoke runs still receive a platform runtime
+classpath in CI, so tests do not depend on whatever happened to be installed on
+a developer machine. Application builds should manage only their own classes
+and application-specific libraries.
 
 ## Quick Start
 
-Apply the plugin and declare managed dependencies on the `sparkPlatform`
-configuration:
+Apply the plugin and select the platform contract:
 
 ```kotlin
 plugins {
@@ -31,11 +35,6 @@ sparkPlatform {
     line.set("spark4")
     variants.set(listOf("iceberg"))
     platformVersion.set("0.1.1-SNAPSHOT")
-}
-
-dependencies {
-    sparkPlatform("org.apache.spark:spark-sql_2.13")
-    sparkPlatform("org.apache.iceberg:iceberg-spark-runtime-4.0_2.13")
 }
 ```
 
@@ -119,3 +118,7 @@ The Jib image tasks are not compatible with Gradle configuration-cache reuse in
 the current toolchain, so the build marks those tasks incompatible and Gradle
 discards their configuration-cache entries. This does not disable Gradle's build
 cache or Jib's image layer reuse.
+
+Application `jibDockerBuild` tasks use the local Docker platform image as their
+base image, even in CI. Registry publishing with `jib` keeps the registry base
+image reference.

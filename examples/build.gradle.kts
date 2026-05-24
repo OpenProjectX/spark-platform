@@ -57,14 +57,6 @@ fun extensionStringProperty(extension: Any, propertyName: String): String {
     return value.toString()
 }
 
-fun extensionBooleanProperty(extension: Any, propertyName: String): Boolean {
-    val property = extensionGetter(extension, propertyName)
-    val value = property.javaClass.methods.single {
-        it.name == "get" && it.parameterCount == 0
-    }.invoke(property)
-    return value as Boolean
-}
-
 fun extensionListProperty(extension: Any, propertyName: String): List<String> {
     val property = extensionGetter(extension, propertyName)
     val value = property.javaClass.methods.single {
@@ -106,10 +98,6 @@ subprojects {
     plugins.withId("com.google.cloud.tools.jib") {
         afterEvaluate {
             val sparkPlatform = extensions.findByName("sparkPlatform") ?: return@afterEvaluate
-            if (extensionBooleanProperty(sparkPlatform, "officialBuild")) {
-                return@afterEvaluate
-            }
-
             val line = extensionStringProperty(sparkPlatform, "line")
             val variants = extensionListProperty(sparkPlatform, "variants")
             val platformVersion = extensionStringProperty(sparkPlatform, "platformVersion")

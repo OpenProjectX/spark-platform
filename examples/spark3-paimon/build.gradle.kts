@@ -7,12 +7,6 @@ plugins {
 sparkPlatform {
     line.set("spark3")
     variants.set(listOf("paimon"))
-    officialBuild.set(false)
-}
-
-dependencies {
-    sparkPlatform("org.apache.spark:spark-sql_2.12")
-    sparkPlatform("org.apache.paimon:paimon-spark-3.5_2.12")
 }
 
 application {
