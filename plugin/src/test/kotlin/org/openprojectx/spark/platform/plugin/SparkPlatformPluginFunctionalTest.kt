@@ -91,6 +91,7 @@ class SparkPlatformPluginFunctionalTest {
         assertEquals(TaskOutcome.SUCCESS, result.task(":printJib")?.outcome)
         assertTrue(result.output.contains("fromImage=docker://registry.example.com/spark-platform:spark4-iceberg-1.2.3"))
         assertTrue(result.output.contains("jibJvmFlag=--add-opens=java.base/java.nio=ALL-UNNAMED"))
+        assertTrue(result.output.contains("jibExtraClasspath=/opt/spark/jars/*"))
     }
 
     @Test
@@ -109,6 +110,25 @@ class SparkPlatformPluginFunctionalTest {
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":printJib")?.outcome)
         assertTrue(result.output.contains("fromImage=registry.example.com/spark-platform:spark4-iceberg-1.2.3"))
+    }
+
+    @Test
+    fun `local platform image uses Docker daemon image even in official builds`() {
+        writeFixture(
+            """
+            sparkPlatform {
+                line.set("spark4")
+                variants.set(listOf("iceberg"))
+                platformImage.set("registry.example.com/spark-platform")
+                localPlatformImage.set(true)
+            }
+            """.trimIndent()
+        )
+
+        val result = gradleRunner("printJib", "-PsparkPlatform.officialBuild=true").build()
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":printJib")?.outcome)
+        assertTrue(result.output.contains("fromImage=docker://registry.example.com/spark-platform:spark4-iceberg-1.2.3"))
     }
 
     @Test
@@ -183,6 +203,8 @@ class SparkPlatformPluginFunctionalTest {
                     val container = jib.javaClass.methods.first { it.name == "getContainer" && it.parameterCount == 0 }.invoke(jib)
                     val jvmFlags = container.javaClass.methods.first { it.name == "getJvmFlags" && it.parameterCount == 0 }.invoke(container) as List<*>
                     jvmFlags.forEach { println("jibJvmFlag=${'$'}it") }
+                    val extraClasspath = container.javaClass.methods.first { it.name == "getExtraClasspath" && it.parameterCount == 0 }.invoke(container) as List<*>
+                    extraClasspath.forEach { println("jibExtraClasspath=${'$'}it") }
                 }
             }
 

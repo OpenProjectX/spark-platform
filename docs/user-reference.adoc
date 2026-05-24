@@ -140,6 +140,7 @@ sparkPlatform {
     variants.set(listOf("iceberg"))
     platformVersion.set("0.1.1-SNAPSHOT")
     platformImage.set("ghcr.io/openprojectx/spark-platform")
+    localPlatformImage.set(false)
 }
 ----
 
@@ -167,6 +168,12 @@ sparkPlatform {
 | CI-derived
 | Chooses whether managed dependencies are `implementation` or `compileOnly`.
 
+| `localPlatformImage`
+| `true` only for direct `jibDockerBuild`, otherwise `false`
+| When enabled, Jib reads the selected platform base image from the local Docker
+daemon by using a `docker://` base image reference. Use this for integration
+builds that first build the platform image locally.
+
 | `variants`
 | empty list
 | Optional runtime variants. The plugin uses these to add variant runtime
@@ -185,6 +192,10 @@ them through the `sparkPlatform.variants` Gradle property.
 
 | `sparkPlatform.officialBuild`
 | Forces official mode when set to `true`.
+
+| `sparkPlatform.localPlatformImage`
+| Forces application Jib builds to use the local Docker daemon platform image
+when set to `true`.
 
 | `sparkPlatform.imageRepository`
 | Target repository for `:platform-image`.
@@ -373,11 +384,22 @@ The application image base is:
 <sparkPlatform.platformImage>:<sparkPlatform.imageTag>
 ----
 
+Application image entrypoints include Spark Platform's managed JVM module
+options and add `/opt/spark/jars/*` to Jib's extra classpath. Application
+projects do not need to repeat Spark, Hadoop, Scala, or variant jars in their
+own image; the platform base image owns those runtime artifacts.
+
 For `jibDockerBuild`, the plugin prefixes the base image with `docker://` so
 the local Docker daemon is used and Jib does not require the platform base image
 to exist in the remote registry. For `jib`, official builds keep the normal
 registry reference because publishing should be based on the registry platform
 image.
+
+If a higher-level task such as `integration` or `release` will eventually run
+`jibDockerBuild`, Gradle's initial task list may not contain `jibDockerBuild`.
+Set `sparkPlatform.localPlatformImage = true` in that integration build, or pass
+`-PsparkPlatform.localPlatformImage=true`, so Jib uses the platform image built
+earlier in the same Docker daemon.
 
 The default application image target is:
 

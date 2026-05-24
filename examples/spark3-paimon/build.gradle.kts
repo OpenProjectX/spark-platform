@@ -7,6 +7,7 @@ plugins {
 sparkPlatform {
     line.set("spark3")
     variants.set(listOf("paimon"))
+    localPlatformImage.set(true)
 }
 
 application {

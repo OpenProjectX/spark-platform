@@ -122,3 +122,12 @@ cache or Jib's image layer reuse.
 Application `jibDockerBuild` tasks use the local Docker platform image as their
 base image, even in CI. Registry publishing with `jib` keeps the registry base
 image reference.
+
+Application images also get the platform jar directory, `/opt/spark/jars/*`, on
+the Jib runtime classpath. Spark and variant runtime jars remain owned by the
+platform image rather than being redeclared or repackaged by application
+projects.
+
+For aggregate tasks such as `integration` or `release` that invoke
+`jibDockerBuild` indirectly, set `sparkPlatform.localPlatformImage=true` in the
+application build or pass `-PsparkPlatform.localPlatformImage=true`.

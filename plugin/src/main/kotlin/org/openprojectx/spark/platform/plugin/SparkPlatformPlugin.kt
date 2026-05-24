@@ -25,6 +25,11 @@ class SparkPlatformPlugin : Plugin<Project> {
         )
 
         extension.officialBuild.convention(project.provider { project.isOfficialBuild() })
+        extension.localPlatformImage.convention(
+            project.providers.gradleProperty("sparkPlatform.localPlatformImage")
+                .map(String::toBoolean)
+                .orElse(project.provider { project.isJibDockerBuild() })
+        )
         extension.line.convention(project.providers.gradleProperty("sparkPlatform.line").orElse(SparkPlatformCatalog.DEFAULT_LINE))
         extension.platformVersion.convention(project.provider { project.version.toString() })
         extension.platformImage.convention("ghcr.io/openprojectx/spark-platform")
@@ -135,6 +140,7 @@ class SparkPlatformPlugin : Plugin<Project> {
         jib.to { it.setImage(toImage) }
         jib.container {
             it.setJvmFlags((jvmFlags + it.jvmFlags).distinct())
+            it.setExtraClasspath((listOf(PLATFORM_JARS_CLASSPATH) + it.extraClasspath).distinct())
         }
     }
 
@@ -151,7 +157,7 @@ class SparkPlatformPlugin : Plugin<Project> {
 
     private fun platformBaseImageReference(project: Project, extension: SparkPlatformExtension): String {
         val image = "${extension.platformImage.get()}:${extension.imageTag.get()}"
-        return if ((extension.officialBuild.get() && !project.isJibDockerBuild()) || image.startsWith("docker://")) {
+        return if ((extension.officialBuild.get() && !extension.localPlatformImage.get()) || image.startsWith("docker://")) {
             image
         } else {
             "docker://$image"
@@ -244,5 +250,6 @@ class SparkPlatformPlugin : Plugin<Project> {
         const val MANAGED_CONFIGURATION = "sparkPlatform"
         const val BOM_CONFIGURATION = "sparkPlatformBom"
         const val JAVA_EXEC_RUNTIME_CONFIGURATION = "sparkPlatformJavaExecRuntime"
+        const val PLATFORM_JARS_CLASSPATH = "/opt/spark/jars/*"
     }
 }

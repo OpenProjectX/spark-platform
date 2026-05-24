@@ -29,4 +29,6 @@ Each example also exposes `:example-name:integrationJvm` and
 
 The examples build uses Gradle Java toolchains for JDK 17. The example projects
 select Spark Platform lines and variants, and the plugin supplies the
-platform-owned Spark and variant runtime dependencies.
+platform-owned Spark and variant runtime dependencies. They also set
+`sparkPlatform.localPlatformImage = true` so Docker integration uses the
+platform image built in the local Docker daemon during the same run.
