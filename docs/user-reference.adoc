@@ -280,9 +280,10 @@ To add a new Spark line, add the corresponding aliases and bundles to
 Use a `spark-platform-<line>-variant-<variant>-managed` bundle when a variant
 cannot share the line-wide BOM. Spark 3 Paimon is the current example: Paimon
 Spark 3.5 uses Scala 2.12 artifacts, while the normal Spark 3 bundle uses Scala
-2.13 artifacts. The plugin selects an isolated variant-managed bundle only when
-that single variant is requested; isolated variant-managed bundles cannot be
-combined with other variants.
+2.13 artifacts. For constraints, the plugin and BOM can include isolated
+variant-managed bundles alongside other requested variants because the user
+still opts into concrete platform dependencies explicitly. Platform images still
+split incompatible Scala variant groups instead of forcing them into one image.
 
 == Platform BOM
 

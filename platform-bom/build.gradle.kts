@@ -76,16 +76,12 @@ fun managedBundles(
         }
     }
 
-    val isolatedVariants = variants.filter {
-        bundleOrNull(variantManagedBundleName(line, it)) != null
-    }
-    require(isolatedVariants.isEmpty()) {
-        "Variant-managed Spark Platform bundles are isolated and cannot be combined with other variants: $isolatedVariants"
-    }
-
     add(bundle(managedBundleName(line)))
     variants.forEach { variant ->
-        add(bundle(variantBundleName(line, variant)))
+        add(
+            bundleOrNull(variantManagedBundleName(line, variant))
+                ?: bundle(variantBundleName(line, variant))
+        )
     }
 }
 

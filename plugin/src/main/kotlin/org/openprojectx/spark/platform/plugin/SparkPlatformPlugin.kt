@@ -215,17 +215,13 @@ class SparkPlatformPlugin : Plugin<Project> {
             }
         }
 
-        val isolatedVariants = variants.filter {
-            bundleOrNull(SparkPlatformCatalog.variantManagedBundle(line, it)) != null
-        }
-        require(isolatedVariants.isEmpty()) {
-            "Variant-managed Spark Platform bundles are isolated and cannot be combined with other variants: $isolatedVariants"
-        }
-
         return buildList {
             add(bundle(SparkPlatformCatalog.managedBundle(line)))
             variants.forEach { variant ->
-                add(bundle(SparkPlatformCatalog.variantBundle(line, variant)))
+                add(
+                    bundleOrNull(SparkPlatformCatalog.variantManagedBundle(line, variant))
+                        ?: bundle(SparkPlatformCatalog.variantBundle(line, variant))
+                )
             }
         }
     }
