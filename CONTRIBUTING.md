@@ -61,14 +61,31 @@ env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuildPlatf
   -PsparkPlatform.line=spark4
 ```
 
+List jars in a built platform image:
+
+```bash
+docker run --rm --entrypoint ls \
+  ghcr.io/openprojectx/spark-platform:spark4-iceberg-0.1.1-SNAPSHOT \
+  /opt/spark/jars
+```
+
+Use `--entrypoint` because the Spark image entrypoint treats command arguments
+as Spark launch arguments. For a stable sorted jar list:
+
+```bash
+docker run --rm --entrypoint sh \
+  ghcr.io/openprojectx/spark-platform:spark4-iceberg-0.1.1-SNAPSHOT \
+  -c 'find /opt/spark/jars -maxdepth 1 -type f -name "*.jar" -printf "%f\n" | sort'
+```
+
 ## Adding a Managed Dependency
 
 1. Add or update the version in `gradle/libs.versions.toml`.
 2. Add a library alias for each supported Spark line.
 3. Add the alias to the matching managed bundle.
 4. Add a variant bundle if the dependency is optional image content.
-5. Add a `spark-platform-<line>-variant-<variant>-managed` bundle when the
-   variant needs an isolated BOM, for example Scala 2.12-only Spark 3 Paimon.
+5. Add a `spark-platform-<line>-variant-<variant>-managed` bundle only when the
+   variant needs an isolated BOM.
 6. Add or update plugin/platform-image tests when behavior changes.
 7. Update `docs/user-reference.adoc`.
 

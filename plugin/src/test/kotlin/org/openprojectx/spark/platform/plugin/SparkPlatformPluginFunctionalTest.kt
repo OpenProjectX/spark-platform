@@ -22,7 +22,7 @@ class SparkPlatformPluginFunctionalTest {
         assertTrue(result.output.contains("implementationExtends=sparkPlatform,sparkPlatformBom"))
         assertTrue(result.output.contains("compileOnlyExtends="))
         assertTrue(result.output.contains("dependencyCount=0"))
-        assertTrue(result.output.contains("constraint=org.apache.spark:spark-sql_2.13:3.5.7"))
+        assertTrue(result.output.contains("constraint=org.apache.spark:spark-sql_2.12:3.5.7"))
     }
 
     @Test
@@ -76,11 +76,11 @@ class SparkPlatformPluginFunctionalTest {
         assertEquals(TaskOutcome.SUCCESS, result.task(":printSparkPlatform")?.outcome)
         assertTrue(result.output.contains("dependencyCount=0"))
         assertTrue(result.output.contains("constraint=org.apache.spark:spark-sql_2.13:4.0.1"))
-        assertTrue(result.output.contains("constraint=org.apache.hadoop:hadoop-client-api:3.4.1"))
+        assertTrue(result.output.contains("constraint=org.apache.hadoop:hadoop-client-api:3.4.2"))
     }
 
     @Test
-    fun `spark platform variant can select an isolated managed bundle`() {
+    fun `spark platform variant uses Spark 3 Scala 2_12 constraints`() {
         writeFixture(
             """
             sparkPlatform {
@@ -99,7 +99,7 @@ class SparkPlatformPluginFunctionalTest {
     }
 
     @Test
-    fun `isolated variant managed bundles can contribute constraints with other variants`() {
+    fun `spark3 variants can contribute compatible Scala 2_12 constraints together`() {
         writeFixture(
             """
             sparkPlatform {
@@ -113,9 +113,8 @@ class SparkPlatformPluginFunctionalTest {
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":printSparkPlatform")?.outcome)
         assertTrue(result.output.contains("dependencyCount=0"))
-        assertTrue(result.output.contains("constraint=org.apache.spark:spark-sql_2.13:3.5.7"))
-        assertTrue(result.output.contains("constraint=org.apache.iceberg:iceberg-spark-runtime-3.5_2.13:1.10.0"))
         assertTrue(result.output.contains("constraint=org.apache.spark:spark-sql_2.12:3.5.7"))
+        assertTrue(result.output.contains("constraint=org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.10.0"))
         assertTrue(result.output.contains("constraint=org.apache.paimon:paimon-spark-3.5_2.12:1.4.1"))
     }
 

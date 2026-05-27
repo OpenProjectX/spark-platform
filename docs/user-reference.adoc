@@ -223,8 +223,7 @@ when set to `true`.
 
 | `sparkPlatform.variants`
 | Comma-separated variants, for example `iceberg,hudi`. Platform image defaults
-are line-aware: Spark 3 defaults to `paimon,openlineage` because the official
-Spark 3 image is Scala 2.12; Spark 4 defaults to
+are line-aware: Spark 3 and Spark 4 default to
 `iceberg,hudi,paimon,openlineage`.
 |===
 
@@ -238,11 +237,11 @@ The current version matrix is defined in `gradle/libs.versions.toml`.
 
 | `spark3`
 | `3.5.7`
-| `3.3.6`
+| `3.4.2`
 
 | `spark4`
 | `4.0.1`
-| `3.4.1`
+| `3.4.2`
 |===
 
 Optional runtime families currently represented in the catalog:
@@ -270,7 +269,7 @@ Examples:
 ----
 spark-platform-spark4-managed
 spark-platform-spark4-variant-iceberg
-spark-platform-spark3-variant-paimon-managed
+spark-platform-spark5-variant-legacy-managed
 ----
 
 To add a new Spark line, add the corresponding aliases and bundles to
@@ -278,12 +277,11 @@ To add a new Spark line, add the corresponding aliases and bundles to
 `spark-platform-spark5-managed`.
 
 Use a `spark-platform-<line>-variant-<variant>-managed` bundle when a variant
-cannot share the line-wide BOM. Spark 3 Paimon is the current example: Paimon
-Spark 3.5 uses Scala 2.12 artifacts, while the normal Spark 3 bundle uses Scala
-2.13 artifacts. For constraints, the plugin and BOM can include isolated
-variant-managed bundles alongside other requested variants because the user
-still opts into concrete platform dependencies explicitly. Platform images still
-split incompatible Scala variant groups instead of forcing them into one image.
+cannot share the line-wide BOM. For constraints, the plugin and BOM can include
+isolated variant-managed bundles alongside other requested variants because the
+user still opts into concrete platform dependencies explicitly. Platform images
+still split incompatible Scala variant groups instead of forcing them into one
+image.
 
 == Platform BOM
 
@@ -325,6 +323,8 @@ spark:<spark-version>-scala<scala-binary-version>-java17-python3-r-ubuntu
 
 The suffix can be overridden with `-PsparkPlatform.baseImageSuffix=...`, but
 the default is intentionally fixed to Java 17, Python 3, R, and Ubuntu.
+Spark 3 uses Scala 2.12 artifacts because the official Apache Spark 3.5 Docker
+images are published with Scala 2.12 tags. Spark 4 uses Scala 2.13 artifacts.
 
 Only variant jars are layered into the Spark image. Spark, Hadoop, Scala, SLF4J,
 snappy, and the standard `org.lz4` provider are treated as base-image-provided
@@ -339,11 +339,9 @@ env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuildPlatf
 ----
 
 The aggregate task builds each selected variant individually, then builds one
-combined image for each Scala-compatible variant group after applying the
-line-specific isolation rules in `platform-image/build.gradle.kts`. For Spark 4
+combined image for each Scala-compatible variant group. For Spark 3 and Spark 4
 defaults, that means individual `iceberg`, `hudi`, `paimon`, and `openlineage`
-images, plus one combined `iceberg-hudi-paimon-openlineage` image. For Spark 3,
-Paimon is isolated from combined images because that variant is Scala 2.12-only.
+images, plus one combined `iceberg-hudi-paimon-openlineage` image.
 
 Build one explicit variant set:
 
@@ -454,7 +452,7 @@ env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark3-paimon:run --no-configurat
 The example:
 
 * selects `spark3`
-* selects the isolated `paimon` variant-managed bundle
+* selects the `paimon` variant
 * adds versionless `sparkPlatform` dependencies for Spark SQL and Paimon
 * receives Scala 2.12 Spark and Paimon versions from the platform constraints
 * relies on Spark Platform's built-in LZ4 capability resolution for Paimon

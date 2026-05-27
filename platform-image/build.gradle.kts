@@ -16,9 +16,7 @@ val defaultImageVariantsByLine = mapOf(
     "spark3" to listOf("iceberg", "hudi", "paimon", "openlineage"),
     "spark4" to listOf("iceberg", "hudi", "paimon", "openlineage")
 )
-val isolatedCombinedImageVariantsByLine = mapOf(
-    "spark3" to setOf("paimon")
-)
+val isolatedCombinedImageVariantsByLine = emptyMap<String, Set<String>>()
 val variants = providers.gradleProperty("sparkPlatform.variants")
     .map { it.split(",").map(String::trim).filter(String::isNotEmpty).map(String::lowercase).distinct() }
     .orElse(

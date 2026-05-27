@@ -98,13 +98,14 @@ env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuildPlatf
 ```
 
 Platform images use Apache Spark base images such as
-`spark:4.0.1-scala2.13-java17-python3-r-ubuntu` and layer only the selected
+`spark:3.5.7-scala2.12-java17-python3-r-ubuntu` and
+`spark:4.0.1-scala2.13-java17-python3-r-ubuntu`, then layer only the selected
 variant jars into `/opt/spark/jars`. Variant names are part of the generated
 image tag, for example `spark4-iceberg-0.1.1-SNAPSHOT`.
 
 The aggregate `jibDockerBuildPlatformImages` task builds each selected variant
 individually, then builds one combined image for each Scala-compatible variant
-group, after applying line-specific isolation rules such as Spark 3 Paimon.
+group.
 Build one explicit variant set with:
 
 ```bash
