@@ -9,6 +9,9 @@ import org.junit.jupiter.api.io.TempDir
 import java.io.File
 
 class SparkPlatformPluginFunctionalTest {
+    private val spark3Version = "3.5.8"
+    private val spark4Version = "4.0.1"
+
     @field:TempDir
     lateinit var projectDir: File
 
@@ -22,7 +25,7 @@ class SparkPlatformPluginFunctionalTest {
         assertTrue(result.output.contains("implementationExtends=sparkPlatform,sparkPlatformBom"))
         assertTrue(result.output.contains("compileOnlyExtends="))
         assertTrue(result.output.contains("dependencyCount=0"))
-        assertTrue(result.output.contains("constraint=org.apache.spark:spark-sql_2.12:3.5.7"))
+        assertTrue(result.output.contains("constraint=org.apache.spark:spark-sql_2.12:$spark3Version"))
     }
 
     @Test
@@ -57,7 +60,7 @@ class SparkPlatformPluginFunctionalTest {
         assertEquals(TaskOutcome.SUCCESS, result.task(":printSparkPlatform")?.outcome)
         assertTrue(result.output.contains("dependency=org.apache.spark:spark-sql_2.13:null"))
         assertTrue(result.output.contains("dependency=org.apache.iceberg:iceberg-spark-runtime-4.0_2.13:null"))
-        assertTrue(result.output.contains("constraint=org.apache.spark:spark-sql_2.13:4.0.1"))
+        assertTrue(result.output.contains("constraint=org.apache.spark:spark-sql_2.13:$spark4Version"))
         assertTrue(result.output.contains("constraint=org.apache.iceberg:iceberg-spark-runtime-4.0_2.13:1.10.0"))
     }
 
@@ -75,7 +78,7 @@ class SparkPlatformPluginFunctionalTest {
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":printSparkPlatform")?.outcome)
         assertTrue(result.output.contains("dependencyCount=0"))
-        assertTrue(result.output.contains("constraint=org.apache.spark:spark-sql_2.13:4.0.1"))
+        assertTrue(result.output.contains("constraint=org.apache.spark:spark-sql_2.13:$spark4Version"))
         assertTrue(result.output.contains("constraint=org.apache.hadoop:hadoop-client-api:3.4.2"))
     }
 
@@ -94,7 +97,7 @@ class SparkPlatformPluginFunctionalTest {
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":printSparkPlatform")?.outcome)
         assertTrue(result.output.contains("dependencyCount=0"))
-        assertTrue(result.output.contains("constraint=org.apache.spark:spark-sql_2.12:3.5.7"))
+        assertTrue(result.output.contains("constraint=org.apache.spark:spark-sql_2.12:$spark3Version"))
         assertTrue(result.output.contains("constraint=org.apache.paimon:paimon-spark-3.5_2.12:1.4.1"))
     }
 
@@ -113,7 +116,7 @@ class SparkPlatformPluginFunctionalTest {
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":printSparkPlatform")?.outcome)
         assertTrue(result.output.contains("dependencyCount=0"))
-        assertTrue(result.output.contains("constraint=org.apache.spark:spark-sql_2.12:3.5.7"))
+        assertTrue(result.output.contains("constraint=org.apache.spark:spark-sql_2.12:$spark3Version"))
         assertTrue(result.output.contains("constraint=org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.10.0"))
         assertTrue(result.output.contains("constraint=org.apache.paimon:paimon-spark-3.5_2.12:1.4.1"))
     }

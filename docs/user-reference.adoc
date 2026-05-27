@@ -236,7 +236,7 @@ The current version matrix is defined in `gradle/libs.versions.toml`.
 | Line | Spark | Hadoop
 
 | `spark3`
-| `3.5.7`
+| `3.5.8`
 | `3.4.2`
 
 | `spark4`

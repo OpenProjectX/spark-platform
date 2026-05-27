@@ -89,6 +89,37 @@ docker run --rm --entrypoint sh \
 6. Add or update plugin/platform-image tests when behavior changes.
 7. Update `docs/user-reference.adoc`.
 
+## Upgrading a Spark Line
+
+1. Check the Apache release archive for the target Spark version and confirm the
+   binary distributions that exist, especially `bin-hadoop3`,
+   `bin-hadoop3-scala2.13`, and `bin-without-hadoop`.
+2. Check `versions.json` in
+   `https://github.com/apache/spark-docker.git` and Docker Hub tags for the
+   matching official Spark base image. The platform-image build uses tags like
+   `spark:<spark-version>-scala<scala-binary-version>-java17-python3-r-ubuntu`.
+3. Keep the Scala binary version aligned with the official Spark Docker image
+   for that line. Spark 3 official Java 17 images are Scala 2.12; Spark 4 images
+   are Scala 2.13.
+4. Update only version catalog entries in `gradle/libs.versions.toml`; do not
+   hard-code upgraded versions in plugin or platform-image source.
+5. Re-check variant artifacts for the Spark line, for example Iceberg, Hudi,
+   Paimon, and OpenLineage coordinates. Some variants encode both Spark and
+   Scala versions in the artifact name.
+6. Check Hadoop deliberately. The official Spark `bin-hadoop3` distribution may
+   bundle a different Hadoop patch version than the catalog. Do not assume a
+   catalog Hadoop upgrade replaces jars already present in the Spark base image.
+7. Update tests and docs that assert the Spark version or show concrete image
+   tags.
+8. Verify the plugin and image tag selection:
+
+```bash
+env GRADLE_USER_HOME=/data/.gradle ./gradlew :plugin:test --no-configuration-cache
+env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuild --dry-run --no-configuration-cache \
+  -PsparkPlatform.line=spark3 \
+  -PsparkPlatform.variants=iceberg
+```
+
 ## Pull Request Checklist
 
 - The change is covered by focused tests or the verification gap is documented.
