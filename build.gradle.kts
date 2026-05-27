@@ -122,9 +122,9 @@ configure<ReleaseExtension> {
     buildTasks.set(
         listOf(
             "integrationTest",
+            ":platform-image:jibPublishAllPlatformImages",
             "publishToSonatype",
             "closeAndReleaseSonatypeStagingRepository",
-            ":platform-image:jibPublishAllPlatformImages"
         )
     )
     versionPropertyFile.set("gradle.properties")
