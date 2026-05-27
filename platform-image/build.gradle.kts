@@ -10,6 +10,8 @@ plugins {
 val platformLine = providers.gradleProperty("sparkPlatform.line").orElse("spark3")
 val imageRepository = providers.gradleProperty("sparkPlatform.imageRepository")
     .orElse("ghcr.io/openprojectx/spark-platform")
+val baseImageRepository = providers.gradleProperty("sparkPlatform.baseImageRepository")
+    .orElse("spark")
 val baseImageSuffix = providers.gradleProperty("sparkPlatform.baseImageSuffix")
     .orElse("-java17-python3-r-ubuntu")
 val defaultImageVariantsByLine = mapOf(
@@ -151,7 +153,7 @@ fun sparkBaseImage(line: String, selectedVariants: Iterable<String>, failOnMulti
         }
     }
 
-    return "spark:${sparkVersion(normalizedLine)}-scala$scalaVersion${baseImageSuffix.get()}"
+    return "${baseImageRepository.get()}:${sparkVersion(normalizedLine)}-scala$scalaVersion${baseImageSuffix.get()}"
 }
 
 data class PlatformImageBuildSpec(
@@ -260,6 +262,7 @@ fun registerPlatformImageTasks(
                 "-PsparkPlatform.line=${platformLine.get()}",
                 "-PsparkPlatform.variants=${spec.variants.joinToString(",")}",
                 "-PsparkPlatform.imageRepository=${imageRepository.get()}",
+                "-PsparkPlatform.baseImageRepository=${baseImageRepository.get()}",
                 "-PsparkPlatform.imageTag=${platformImageTag(platformLine.get(), spec.variants)}",
                 "-PsparkPlatform.baseImageSuffix=${baseImageSuffix.get()}"
             )
@@ -308,6 +311,7 @@ val jibPublishAllPlatformImageTaskNames = defaultImageVariantsByLine.keys.map { 
             "-PsparkPlatform.line=$normalizedLine",
             "-PsparkPlatform.variants=${defaultImageVariantsByLine.getValue(normalizedLine).joinToString(",")}",
             "-PsparkPlatform.imageRepository=${imageRepository.get()}",
+            "-PsparkPlatform.baseImageRepository=${baseImageRepository.get()}",
             "-PsparkPlatform.baseImageSuffix=${baseImageSuffix.get()}"
         )
     }

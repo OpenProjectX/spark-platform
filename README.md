@@ -103,6 +103,11 @@ Platform images use Apache Spark base images such as
 variant jars into `/opt/spark/jars`. Variant names are part of the generated
 image tag, for example `spark4-iceberg-0.1.1-SNAPSHOT`.
 
+The `spark-base-image` module publishes project-owned base images to
+`ghcr.io/openprojectx/spark` for Spark distributions that are not available as
+Docker Library tags, including Spark 3.5.8 Scala 2.13 and Spark 3.5.8
+Hadoop-provided images.
+
 The aggregate `jibDockerBuildPlatformImages` task builds each selected variant
 individually, then builds one combined image for each Scala-compatible variant
 group.

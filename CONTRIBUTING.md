@@ -61,6 +61,18 @@ env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuildPlatf
   -PsparkPlatform.line=spark4
 ```
 
+Build project-owned Spark base images:
+
+```bash
+env GRADLE_USER_HOME=/data/.gradle ./gradlew :spark-base-image:dockerBuildSparkBaseImages
+```
+
+Publish project-owned Spark base images:
+
+```bash
+env GRADLE_USER_HOME=/data/.gradle ./gradlew :spark-base-image:dockerPushSparkBaseImages
+```
+
 List jars in a built platform image:
 
 ```bash
@@ -119,6 +131,11 @@ env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuild --dr
   -PsparkPlatform.line=spark3 \
   -PsparkPlatform.variants=iceberg
 ```
+
+When the official Spark Docker repository does not publish the required base
+image, add the distribution to `spark-base-image/build.gradle.kts`, keep the
+Dockerfile parameterized by distribution URL, and publish it through the
+`Base Images` workflow or `:spark-base-image:dockerPushSparkBaseImages`.
 
 ## Pull Request Checklist
 

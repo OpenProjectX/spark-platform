@@ -217,6 +217,11 @@ when set to `true`.
 | `sparkPlatform.imageTag`
 | Target tag for `:platform-image`.
 
+| `sparkPlatform.baseImageRepository`
+| Source repository for the Spark base image. Defaults to Docker Library
+`spark`. Use `ghcr.io/openprojectx/spark` for base images built by this
+project.
+
 | `sparkPlatform.baseImageSuffix`
 | Optional suffix for the Apache Spark base image. Defaults to
 `-java17-python3-r-ubuntu`.
@@ -313,8 +318,16 @@ the selected platform version.
 == Platform Image
 
 The `platform-image` module builds a platform image using Jib. It starts from
-the official Apache Spark image that matches the selected Spark version and
-Scala binary version:
+the configured Spark base image repository, Spark version, Scala binary version,
+and base image suffix:
+
+[source,text]
+----
+<base-image-repository>:<spark-version>-scala<scala-binary-version><base-image-suffix>
+----
+
+The default base-image repository is Docker Library `spark`, so the default
+resolved image looks like:
 
 [source,text]
 ----
@@ -385,6 +398,69 @@ because Jib does not declare Gradle task outputs for `jibDockerBuild`, but this
 does not mean the image is rebuilt from scratch: Gradle's build cache remains
 enabled for other tasks, and Jib/Docker still reuse base image layers and Jib's
 layer cache.
+
+== Spark Base Images
+
+The `spark-base-image` module builds project-owned Spark base images for Spark
+distributions that Docker Library `spark` does not publish with the exact tag
+shape needed by the platform.
+
+Current base images:
+
+[cols="1,1", options="header"]
+|===
+| Tag | Spark distribution
+
+| `ghcr.io/openprojectx/spark:3.5.8-scala2.13-java17-ubuntu`
+| `spark-3.5.8-bin-hadoop3-scala2.13.tgz`
+
+| `ghcr.io/openprojectx/spark:3.5.8-scala2.13-java17-python3-ubuntu`
+| `spark-3.5.8-bin-hadoop3-scala2.13.tgz` plus Python 3
+
+| `ghcr.io/openprojectx/spark:3.5.8-scala2.13-java17-r-ubuntu`
+| `spark-3.5.8-bin-hadoop3-scala2.13.tgz` plus R
+
+| `ghcr.io/openprojectx/spark:3.5.8-scala2.13-java17-python3-r-ubuntu`
+| `spark-3.5.8-bin-hadoop3-scala2.13.tgz` plus Python 3 and R
+
+| `ghcr.io/openprojectx/spark:3.5.8-scala2.12-java17-hadoop-provided-ubuntu`
+| `spark-3.5.8-bin-without-hadoop.tgz`
+
+| `ghcr.io/openprojectx/spark:3.5.8-scala2.12-java17-hadoop-provided-python3-ubuntu`
+| `spark-3.5.8-bin-without-hadoop.tgz` plus Python 3
+
+| `ghcr.io/openprojectx/spark:3.5.8-scala2.12-java17-hadoop-provided-r-ubuntu`
+| `spark-3.5.8-bin-without-hadoop.tgz` plus R
+
+| `ghcr.io/openprojectx/spark:3.5.8-scala2.12-java17-hadoop-provided-python3-r-ubuntu`
+| `spark-3.5.8-bin-without-hadoop.tgz` plus Python 3 and R
+|===
+
+Build them locally:
+
+[source,bash]
+----
+env GRADLE_USER_HOME=/data/.gradle ./gradlew :spark-base-image:dockerBuildSparkBaseImages
+----
+
+Publish them:
+
+[source,bash]
+----
+env GRADLE_USER_HOME=/data/.gradle ./gradlew :spark-base-image:dockerPushSparkBaseImages
+----
+
+Use a project-owned base image for a platform image by overriding the base
+repository and suffix:
+
+[source,bash]
+----
+env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuild \
+  -PsparkPlatform.line=spark3 \
+  -PsparkPlatform.variants=iceberg \
+  -PsparkPlatform.baseImageRepository=ghcr.io/openprojectx/spark \
+  -PsparkPlatform.baseImageSuffix=-java17-hadoop-provided-ubuntu
+----
 
 == Application Images
 
