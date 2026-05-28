@@ -138,8 +138,8 @@ class SparkPlatformPluginFunctionalTest {
         assertTrue(result.output.contains("dependencyCount=0"))
         assertTrue(result.output.contains("constraint=org.apache.spark:spark-sql_2.13:$spark3Version"))
         assertTrue(result.output.contains("constraint=org.apache.iceberg:iceberg-spark-runtime-3.5_2.13:1.10.0"))
+        assertTrue(result.output.contains("constraint=org.apache.hadoop:hadoop-client-api:3.4.2"))
         assertTrue(!result.output.contains("constraint=org.apache.spark:spark-sql_2.12:$spark3Version"))
-        assertTrue(!result.output.contains("constraint=org.apache.hadoop:hadoop-client-api"))
     }
 
     @Test
@@ -159,8 +159,6 @@ class SparkPlatformPluginFunctionalTest {
         assertEquals(TaskOutcome.SUCCESS, result.task(":printJib")?.outcome)
         assertTrue(result.output.contains("fromImage=docker://registry.example.com/spark-platform:spark4-iceberg-1.2.3"))
         assertTrue(result.output.contains("jibJvmFlag=--add-opens=java.base/java.nio=ALL-UNNAMED"))
-        assertTrue(result.output.contains("jibExtraClasspath=/opt/spark/jars/hadoop-client-api-3.4.2.jar"))
-        assertTrue(result.output.contains("jibExtraClasspath=/opt/spark/jars/hadoop-client-runtime-3.4.2.jar"))
         assertTrue(result.output.contains("jibExtraClasspath=/opt/spark/jars/*"))
     }
 

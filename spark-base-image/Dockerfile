@@ -37,7 +37,9 @@ RUN set -ex; \
 
 ARG SPARK_TGZ_URL
 ARG SPARK_TGZ_ASC_URL
-ARG GPG_KEY
+ARG GPG_KEY=
+ARG GPG_KEYS_URL=https://archive.apache.org/dist/spark/KEYS
+ARG STRIP_SPARK_JARS=false
 
 RUN set -ex; \
     export SPARK_TMP="$(mktemp -d)"; \
@@ -45,14 +47,22 @@ RUN set -ex; \
     wget -nv -O spark.tgz "$SPARK_TGZ_URL"; \
     wget -nv -O spark.tgz.asc "$SPARK_TGZ_ASC_URL"; \
     export GNUPGHOME="$(mktemp -d)"; \
-    gpg --batch --keyserver hkps://keys.openpgp.org --recv-key "$GPG_KEY" || \
-    gpg --batch --keyserver hkps://keyserver.ubuntu.com --recv-keys "$GPG_KEY"; \
+    if [ -n "$GPG_KEY" ]; then \
+      gpg --batch --keyserver hkps://keys.openpgp.org --recv-key "$GPG_KEY" || \
+      gpg --batch --keyserver hkps://keyserver.ubuntu.com --recv-keys "$GPG_KEY"; \
+    else \
+      wget -nv -O KEYS "$GPG_KEYS_URL"; \
+      gpg --batch --import KEYS; \
+    fi; \
     gpg --batch --verify spark.tgz.asc spark.tgz; \
     gpgconf --kill all; \
     rm -rf "$GNUPGHOME" spark.tgz.asc; \
     tar -xf spark.tgz --strip-components=1; \
     chown -R spark:spark .; \
     mv jars /opt/spark/; \
+    if [ "$STRIP_SPARK_JARS" = "true" ]; then \
+      find /opt/spark/jars -mindepth 1 -maxdepth 1 -type f -delete; \
+    fi; \
     mv RELEASE /opt/spark/; \
     mv bin /opt/spark/; \
     mv sbin /opt/spark/; \

@@ -218,9 +218,8 @@ when set to `true`.
 | Target tag for `:platform-image`.
 
 | `sparkPlatform.baseImageRepository`
-| Source repository for the Spark base image. Defaults to Docker Library
-`spark`, except `spark3-scala213`, which defaults to
-`ghcr.io/openprojectx/spark`.
+| Source repository for the Spark base image. Defaults to
+`ghcr.io/openprojectx/spark` for every supported Spark line.
 
 | `sparkPlatform.baseImageSuffix`
 | Optional suffix for the Apache Spark base image. Defaults to
@@ -327,30 +326,26 @@ and base image suffix:
 <base-image-repository>:<spark-version>-scala<scala-binary-version><base-image-suffix>
 ----
 
-The default base-image repository is Docker Library `spark`, so the default
-resolved image looks like:
+The default base-image repository is the project-owned clean Spark image
+repository, so the default resolved image looks like:
 
 [source,text]
 ----
-spark:<spark-version>-scala<scala-binary-version>-java17-python3-r-ubuntu
+ghcr.io/openprojectx/spark:<spark-version>-scala<scala-binary-version>-java17-python3-r-ubuntu
 ----
 
 The suffix can be overridden with `-PsparkPlatform.baseImageSuffix=...`, but
 the default is intentionally fixed to Java 17, Python 3, R, and Ubuntu.
-Spark 3 uses Scala 2.12 artifacts because the official Apache Spark 3.5 Docker
-images are published with Scala 2.12 tags. Spark 4 uses Scala 2.13 artifacts.
-Use `spark3-scala213` when you need Spark 3.5.8 with Scala 2.13. That line is
-backed by project-owned base images under `ghcr.io/openprojectx/spark` because
-Docker Library `spark` does not publish Spark 3.5.8 Scala 2.13 Java 17 tags.
-It is not a suffix override on the Scala 2.12 `spark3` line.
+Spark 3 uses Scala 2.12 artifacts by default. Spark 4 uses Scala 2.13
+artifacts. Use `spark3-scala213` when you need Spark 3.5.8 with Scala 2.13; it
+is a separate Spark line, not a suffix override on the Scala 2.12 `spark3`
+line.
 
-Variant jars and platform-owned override jars are layered into the Spark image.
-Spark, Scala, SLF4J, snappy, and the standard `org.lz4` provider are treated as
-base-image-provided dependencies and are not copied from Gradle resolution
-output. Hadoop client jars are platform-owned override jars: the
-`hadoopSpark3` and `hadoopSpark4` version-catalog entries are copied into
-`/opt/spark/jars` and are put before the broad Spark jars wildcard in
-application image classpaths.
+Only variant jars are layered by `platform-image`. Spark, Scala, Hadoop, SLF4J,
+snappy, and the standard `org.lz4` provider are treated as base-image-provided
+dependencies and are not copied from platform-image Gradle resolution output.
+The base image owns the runtime baseline, including the `hadoopSpark3` and
+`hadoopSpark4` versions from the catalog.
 
 Build the default Spark 4 platform images:
 
@@ -376,7 +371,7 @@ env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuild \
 
 By default, the platform image uses:
 
-* base image: `spark:<spark-version>-scala<scala-binary-version>-java17-python3-r-ubuntu`
+* base image: `ghcr.io/openprojectx/spark:<spark-version>-scala<scala-binary-version>-java17-python3-r-ubuntu`
 * target image: `ghcr.io/openprojectx/spark-platform`
 * target tag: `<line>-<variant-or-variants>-<project.version>`
 * extra jars path: `/opt/spark/jars`
@@ -410,44 +405,52 @@ layer cache.
 
 == Spark Base Images
 
-The `spark-base-image` module builds project-owned Spark base images for Spark
-distributions that Docker Library `spark` does not publish with the exact tag
-shape needed by the platform.
+The `spark-base-image` module builds project-owned clean Spark base images for
+all supported Spark lines. These images preserve the Apache Spark distribution
+filesystem layout for Spark Operator and Kubernetes use, but the final
+`/opt/spark/jars` contents are resolved by Gradle from the platform catalog and
+BOM.
+
+Each supported line is built in two steps:
+
+* a layout image downloads and verifies the Apache Spark distribution, extracts
+  `/opt/spark`, and strips `/opt/spark/jars` in the same Docker layer
+* a runtime image starts from the layout image and uses Jib to add
+  Gradle-managed Spark, Scala, Hadoop, and related runtime jars
 
 Base images are released independently through the `Base Images` GitHub
 workflow. Platform image release tasks do not build or publish base images; they
 consume the already-published `ghcr.io/openprojectx/spark` images.
 
-Current base images:
+Current runtime base images:
 
 [cols="1,1", options="header"]
 |===
-| Tag | Spark distribution
+| Line | Tags
 
-| `ghcr.io/openprojectx/spark:3.5.8-scala2.13-java17-ubuntu`
-| `spark-3.5.8-bin-hadoop3-scala2.13.tgz`
+| `spark3`
+| `3.5.8-scala2.12-java17-ubuntu`,
+  `3.5.8-scala2.12-java17-python3-ubuntu`,
+  `3.5.8-scala2.12-java17-r-ubuntu`,
+  `3.5.8-scala2.12-java17-python3-r-ubuntu`
 
-| `ghcr.io/openprojectx/spark:3.5.8-scala2.13-java17-python3-ubuntu`
-| `spark-3.5.8-bin-hadoop3-scala2.13.tgz` plus Python 3
+| `spark3-scala213`
+| `3.5.8-scala2.13-java17-ubuntu`,
+  `3.5.8-scala2.13-java17-python3-ubuntu`,
+  `3.5.8-scala2.13-java17-r-ubuntu`,
+  `3.5.8-scala2.13-java17-python3-r-ubuntu`
 
-| `ghcr.io/openprojectx/spark:3.5.8-scala2.13-java17-r-ubuntu`
-| `spark-3.5.8-bin-hadoop3-scala2.13.tgz` plus R
-
-| `ghcr.io/openprojectx/spark:3.5.8-scala2.13-java17-python3-r-ubuntu`
-| `spark-3.5.8-bin-hadoop3-scala2.13.tgz` plus Python 3 and R
-
-| `ghcr.io/openprojectx/spark:3.5.8-scala2.13-java17-hadoop-provided-ubuntu`
-| Gradle/Jib-managed Spark 3.5.8 Scala 2.13 jars without Hadoop client jars
-
-| `ghcr.io/openprojectx/spark:3.5.8-scala2.13-java17-hadoop-provided-python3-ubuntu`
-| Gradle/Jib-managed Spark 3.5.8 Scala 2.13 jars without Hadoop client jars, plus Python 3
-
-| `ghcr.io/openprojectx/spark:3.5.8-scala2.13-java17-hadoop-provided-r-ubuntu`
-| Gradle/Jib-managed Spark 3.5.8 Scala 2.13 jars without Hadoop client jars, plus R
-
-| `ghcr.io/openprojectx/spark:3.5.8-scala2.13-java17-hadoop-provided-python3-r-ubuntu`
-| Gradle/Jib-managed Spark 3.5.8 Scala 2.13 jars without Hadoop client jars, plus Python 3 and R
+| `spark4`
+| `4.0.1-scala2.13-java17-ubuntu`,
+  `4.0.1-scala2.13-java17-python3-ubuntu`,
+  `4.0.1-scala2.13-java17-r-ubuntu`,
+  `4.0.1-scala2.13-java17-python3-r-ubuntu`
 |===
+
+Each line also publishes a layout image with `layout` in the tag, for example
+`ghcr.io/openprojectx/spark:3.5.8-scala2.12-java17-layout-ubuntu`. Layout images
+are build inputs for runtime images and are not intended as Spark runtime
+images by themselves.
 
 Build them locally:
 

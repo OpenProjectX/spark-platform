@@ -115,19 +115,20 @@ docker run --rm --entrypoint sh \
    Gradle/Jib instead of reusing a different Scala binary distribution.
 2. Check `versions.json` in
    `https://github.com/apache/spark-docker.git` and Docker Hub tags for the
-   matching official Spark base image. The platform-image build uses tags like
-   `spark:<spark-version>-scala<scala-binary-version>-java17-python3-r-ubuntu`.
-3. Keep the Scala binary version aligned with the official Spark Docker image
-   for that line. Spark 3 official Java 17 images are Scala 2.12; Spark 4 images
-   are Scala 2.13.
+   matching official Spark image shape. Use it as a compatibility reference,
+   not as the platform runtime source.
+3. Keep the Scala binary version explicit for each line. Spark 3 defaults to
+   Scala 2.12, `spark3-scala213` is a separate Scala 2.13 line, and Spark 4 is
+   Scala 2.13.
 4. Update only version catalog entries in `gradle/libs.versions.toml`; do not
    hard-code upgraded versions in plugin or platform-image source.
 5. Re-check variant artifacts for the Spark line, for example Iceberg, Hudi,
    Paimon, and OpenLineage coordinates. Some variants encode both Spark and
    Scala versions in the artifact name.
-6. Check Hadoop deliberately. The official Spark `bin-hadoop3` distribution may
-   bundle a different Hadoop patch version than the catalog. Do not assume a
-   catalog Hadoop upgrade replaces jars already present in the Spark base image.
+6. Check Hadoop deliberately. Runtime base images must get Hadoop from the
+   Gradle version catalog and BOM, not from jars bundled inside the Apache Spark
+   binary distribution. The layout image strips distribution jars before the
+   Gradle/Jib runtime image adds catalog-managed jars.
 7. Update tests and docs that assert the Spark version or show concrete image
    tags.
 8. Verify the plugin and image tag selection:
@@ -139,16 +140,14 @@ env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuild --dr
   -PsparkPlatform.variants=iceberg
 ```
 
-When the official Spark Docker repository does not publish the required base
-image, add the distribution to `spark-base-image/build.gradle.kts`, keep the
-Dockerfile parameterized by distribution URL, and publish it through the
-`Base Images` workflow or `:spark-base-image:dockerPushSparkBaseImages`.
+When adding a Spark line, add a line spec to `spark-base-image/build.gradle.kts`
+and a `spark-base-<line>-runtime` bundle in `gradle/libs.versions.toml`. The
+layout image should preserve the Apache Spark filesystem contract for
+Kubernetes and Spark Operator use, while the runtime image should assemble
+`/opt/spark/jars` through Gradle/Jib from catalog-managed dependencies.
 Do not wire platform image tasks or the normal release task to build base
 images; base images are slower-moving infrastructure and should be promoted
 independently before platform images consume them.
-For Hadoop-provided images, prefer Gradle/Jib-managed jar assembly so the Spark
-and Scala artifacts remain visible in the version catalog and Gradle dependency
-graph.
 
 ## Pull Request Checklist
 

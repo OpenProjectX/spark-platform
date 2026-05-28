@@ -28,6 +28,12 @@ jibGradlePlugin = { module = "com.google.cloud.tools:jib-gradle-plugin", version
 spark3Core = { module = "org.apache.spark:spark-core_2.12", version.ref = "spark3" }
 spark3Sql = { module = "org.apache.spark:spark-sql_2.12", version.ref = "spark3" }
 spark3Hive = { module = "org.apache.spark:spark-hive_2.12", version.ref = "spark3" }
+spark3HiveThriftserver = { module = "org.apache.spark:spark-hive-thriftserver_2.12", version.ref = "spark3" }
+spark3Yarn = { module = "org.apache.spark:spark-yarn_2.12", version.ref = "spark3" }
+spark3Kubernetes = { module = "org.apache.spark:spark-kubernetes_2.12", version.ref = "spark3" }
+spark3Mllib = { module = "org.apache.spark:spark-mllib_2.12", version.ref = "spark3" }
+spark3Graphx = { module = "org.apache.spark:spark-graphx_2.12", version.ref = "spark3" }
+spark3Repl = { module = "org.apache.spark:spark-repl_2.12", version.ref = "spark3" }
 spark3HadoopClientApi = { module = "org.apache.hadoop:hadoop-client-api", version.ref = "hadoopSpark3" }
 spark3HadoopClientRuntime = { module = "org.apache.hadoop:hadoop-client-runtime", version.ref = "hadoopSpark3" }
 spark3Iceberg = { module = "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12", version.ref = "iceberg" }
@@ -49,6 +55,12 @@ spark3Scala213Openlineage = { module = "io.openlineage:openlineage-spark_2.13", 
 spark4Core = { module = "org.apache.spark:spark-core_2.13", version.ref = "spark4" }
 spark4Sql = { module = "org.apache.spark:spark-sql_2.13", version.ref = "spark4" }
 spark4Hive = { module = "org.apache.spark:spark-hive_2.13", version.ref = "spark4" }
+spark4HiveThriftserver = { module = "org.apache.spark:spark-hive-thriftserver_2.13", version.ref = "spark4" }
+spark4Yarn = { module = "org.apache.spark:spark-yarn_2.13", version.ref = "spark4" }
+spark4Kubernetes = { module = "org.apache.spark:spark-kubernetes_2.13", version.ref = "spark4" }
+spark4Mllib = { module = "org.apache.spark:spark-mllib_2.13", version.ref = "spark4" }
+spark4Graphx = { module = "org.apache.spark:spark-graphx_2.13", version.ref = "spark4" }
+spark4Repl = { module = "org.apache.spark:spark-repl_2.13", version.ref = "spark4" }
 spark4HadoopClientApi = { module = "org.apache.hadoop:hadoop-client-api", version.ref = "hadoopSpark4" }
 spark4HadoopClientRuntime = { module = "org.apache.hadoop:hadoop-client-runtime", version.ref = "hadoopSpark4" }
 spark4Iceberg = { module = "org.apache.iceberg:iceberg-spark-runtime-4.0_2.13", version.ref = "iceberg" }
@@ -69,14 +81,42 @@ spark-platform-spark3-variant-iceberg = ["spark3Iceberg"]
 spark-platform-spark3-variant-hudi = ["spark3Hudi"]
 spark-platform-spark3-variant-paimon = ["spark3Paimon"]
 spark-platform-spark3-variant-openlineage = ["spark3Openlineage"]
+spark-base-spark3-runtime = [
+    "spark3Core",
+    "spark3Sql",
+    "spark3Hive",
+    "spark3HiveThriftserver",
+    "spark3Yarn",
+    "spark3Kubernetes",
+    "spark3Mllib",
+    "spark3Graphx",
+    "spark3Repl",
+    "spark3HadoopClientApi",
+    "spark3HadoopClientRuntime",
+]
 
 spark-platform-spark3-scala213-managed = [
     "spark3Scala213Core",
     "spark3Scala213Sql",
     "spark3Scala213Hive",
+    "spark3HadoopClientApi",
+    "spark3HadoopClientRuntime",
 ]
 spark-platform-spark3-scala213-variant-iceberg = ["spark3Scala213Iceberg"]
 spark-platform-spark3-scala213-variant-openlineage = ["spark3Scala213Openlineage"]
+spark-base-spark3-scala213-runtime = [
+    "spark3Scala213Core",
+    "spark3Scala213Sql",
+    "spark3Scala213Hive",
+    "spark3Scala213HiveThriftserver",
+    "spark3Scala213Yarn",
+    "spark3Scala213Kubernetes",
+    "spark3Scala213Mllib",
+    "spark3Scala213Graphx",
+    "spark3Scala213Repl",
+    "spark3HadoopClientApi",
+    "spark3HadoopClientRuntime",
+]
 
 spark-platform-spark4-managed = [
     "spark4Core",
@@ -89,6 +129,19 @@ spark-platform-spark4-variant-iceberg = ["spark4Iceberg"]
 spark-platform-spark4-variant-hudi = ["spark4Hudi"]
 spark-platform-spark4-variant-paimon = ["spark4Paimon"]
 spark-platform-spark4-variant-openlineage = ["spark4Openlineage"]
+spark-base-spark4-runtime = [
+    "spark4Core",
+    "spark4Sql",
+    "spark4Hive",
+    "spark4HiveThriftserver",
+    "spark4Yarn",
+    "spark4Kubernetes",
+    "spark4Mllib",
+    "spark4Graphx",
+    "spark4Repl",
+    "spark4HadoopClientApi",
+    "spark4HadoopClientRuntime",
+]
 
 [plugins]
 kotlinPluginSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

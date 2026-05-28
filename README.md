@@ -97,25 +97,23 @@ env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuildPlatf
   -PsparkPlatform.line=spark4
 ```
 
-Platform images use Apache Spark base images such as
-`spark:3.5.8-scala2.12-java17-python3-r-ubuntu` and
-`spark:4.0.1-scala2.13-java17-python3-r-ubuntu`, then layer only the selected
-variant jars into `/opt/spark/jars`. Hadoop client jars are also layered from
-the version catalog so `hadoopSpark3` and `hadoopSpark4` override the versions
-bundled by the Spark distribution images. Variant names are part of the
-generated image tag, for example `spark4-iceberg-0.1.1-SNAPSHOT`.
+Platform images use project-owned clean Spark base images such as
+`ghcr.io/openprojectx/spark:3.5.8-scala2.12-java17-python3-r-ubuntu` and
+`ghcr.io/openprojectx/spark:4.0.1-scala2.13-java17-python3-r-ubuntu`, then layer
+only the selected variant jars into `/opt/spark/jars`. Spark, Scala, Hadoop,
+and the core runtime jars are assembled by `spark-base-image` from the Gradle
+version catalog and BOM, so `hadoopSpark3` and `hadoopSpark4` are real base
+image contents rather than classpath overrides of jars bundled by an upstream
+Spark image. Variant names are part of the generated image tag, for example
+`spark4-iceberg-0.1.1-SNAPSHOT`.
 
 The `spark-base-image` module publishes project-owned base images to
-`ghcr.io/openprojectx/spark` for Spark distributions that are not available as
-Docker Library tags, including Spark 3.5.8 Scala 2.13 and Spark 3.5.8
-Hadoop-provided images. The Hadoop-provided Spark 3.5.8 Scala 2.13 image uses
-Gradle and Jib to assemble `/opt/spark/jars` from version-catalog-managed Spark
-artifacts instead of unpacking the Apache binary distribution. Use the
-`spark3-scala213` line for Spark 3.5.8 Scala 2.13 platform images; it defaults
-to the project-owned `ghcr.io/openprojectx/spark` base repository because
-Docker Library `spark` does not publish those Scala 2.13 Java 17 tags. Base
-images are released separately through the `Base Images` workflow; platform
-image release tasks consume the published GHCR images and do not rebuild them.
+`ghcr.io/openprojectx/spark` for every supported Spark line. It first builds a
+layout image from the verified Apache Spark distribution with `/opt/spark/jars`
+stripped in the same Docker layer, then uses Gradle and Jib to add the
+catalog-managed runtime jars. Base images are released separately through the
+`Base Images` workflow; platform image release tasks consume the published GHCR
+images and do not rebuild them.
 
 The aggregate `jibDockerBuildPlatformImages` task builds each selected variant
 individually, then builds one combined image for each Scala-compatible variant
