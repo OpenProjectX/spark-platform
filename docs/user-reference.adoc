@@ -224,8 +224,7 @@ when set to `true`.
 
 | `sparkPlatform.baseImageSuffix`
 | Optional suffix for the Apache Spark base image. Defaults to
-`-java17-python3-r-ubuntu`, except `spark3-scala213`, which defaults to
-`-java17-hadoop-provided-ubuntu`.
+`-java17-python3-r-ubuntu`.
 
 | `sparkPlatform.variants`
 | Comma-separated variants, for example `iceberg,hudi`. Platform image defaults
@@ -341,9 +340,9 @@ the default is intentionally fixed to Java 17, Python 3, R, and Ubuntu.
 Spark 3 uses Scala 2.12 artifacts because the official Apache Spark 3.5 Docker
 images are published with Scala 2.12 tags. Spark 4 uses Scala 2.13 artifacts.
 Use `spark3-scala213` when you need Spark 3.5.8 with Scala 2.13. That line is
-backed by the project-owned Hadoop-provided base image and Scala 2.13 Spark
-dependencies assembled by Gradle/Jib; it is not a suffix override on the
-Scala 2.12 `spark3` line.
+backed by project-owned base images under `ghcr.io/openprojectx/spark` because
+Docker Library `spark` does not publish Spark 3.5.8 Scala 2.13 Java 17 tags.
+It is not a suffix override on the Scala 2.12 `spark3` line.
 
 Only variant jars are layered into the Spark image. Spark, Hadoop, Scala, SLF4J,
 snappy, and the standard `org.lz4` provider are treated as base-image-provided
@@ -456,8 +455,7 @@ Publish them:
 env GRADLE_USER_HOME=/data/.gradle ./gradlew :spark-base-image:dockerPushSparkBaseImages
 ----
 
-Build a platform image on the project-owned Spark 3.5.8 Scala 2.13
-Hadoop-provided base image:
+Build a platform image on the project-owned Spark 3.5.8 Scala 2.13 base image:
 
 [source,bash]
 ----

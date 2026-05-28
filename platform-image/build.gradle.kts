@@ -18,21 +18,11 @@ data class BaseImageDefaults(
 val baseImageDefaultsByLine = mapOf(
     "spark3-scala213" to BaseImageDefaults(
         repository = "ghcr.io/openprojectx/spark",
-        suffix = "-java17-hadoop-provided-ubuntu"
+        suffix = "-java17-python3-r-ubuntu"
     )
 )
-val baseImageRepository = providers.gradleProperty("sparkPlatform.baseImageRepository")
-    .orElse(
-        providers.provider {
-            baseImageDefaultsByLine[platformLine.get().trim().lowercase()]?.repository ?: "spark"
-        }
-    )
-val baseImageSuffix = providers.gradleProperty("sparkPlatform.baseImageSuffix")
-    .orElse(
-        providers.provider {
-            baseImageDefaultsByLine[platformLine.get().trim().lowercase()]?.suffix ?: "-java17-python3-r-ubuntu"
-        }
-    )
+val requestedBaseImageRepository = providers.gradleProperty("sparkPlatform.baseImageRepository")
+val requestedBaseImageSuffix = providers.gradleProperty("sparkPlatform.baseImageSuffix")
 val defaultImageVariantsByLine = mapOf(
     "spark3" to listOf("iceberg", "hudi", "paimon", "openlineage"),
     "spark3-scala213" to listOf("iceberg", "openlineage"),
@@ -126,6 +116,22 @@ fun sparkVersion(line: String): String {
         .requiredVersion
 }
 
+fun baseImageRepositoryFor(line: String): String {
+    return requestedBaseImageRepository.orElse(
+        providers.provider {
+            baseImageDefaultsByLine[line.trim().lowercase()]?.repository ?: "spark"
+        }
+    ).get()
+}
+
+fun baseImageSuffixFor(line: String): String {
+    return requestedBaseImageSuffix.orElse(
+        providers.provider {
+            baseImageDefaultsByLine[line.trim().lowercase()]?.suffix ?: "-java17-python3-r-ubuntu"
+        }
+    ).get()
+}
+
 fun scalaBinaryVersions(bundleNames: Iterable<String>): Set<String> {
     return bundleNames.flatMap { bundleName ->
         libsCatalog.findBundle(bundleName)
@@ -173,7 +179,15 @@ fun sparkBaseImage(line: String, selectedVariants: Iterable<String>, failOnMulti
         }
     }
 
-    return "${baseImageRepository.get()}:${sparkVersion(normalizedLine)}-scala$scalaVersion${baseImageSuffix.get()}"
+    return "${baseImageRepositoryFor(normalizedLine)}:${sparkVersion(normalizedLine)}-scala$scalaVersion${baseImageSuffixFor(normalizedLine)}"
+}
+
+tasks.register("printSparkBaseImage") {
+    group = "help"
+    description = "Prints the Spark base image resolved for the selected Spark Platform line and variants."
+    doLast {
+        println(sparkBaseImage(platformLine.get(), variants.get()))
+    }
 }
 
 data class PlatformImageBuildSpec(
@@ -282,9 +296,9 @@ fun registerPlatformImageTasks(
                 "-PsparkPlatform.line=${platformLine.get()}",
                 "-PsparkPlatform.variants=${spec.variants.joinToString(",")}",
                 "-PsparkPlatform.imageRepository=${imageRepository.get()}",
-                "-PsparkPlatform.baseImageRepository=${baseImageRepository.get()}",
+                "-PsparkPlatform.baseImageRepository=${baseImageRepositoryFor(platformLine.get())}",
                 "-PsparkPlatform.imageTag=${platformImageTag(platformLine.get(), spec.variants)}",
-                "-PsparkPlatform.baseImageSuffix=${baseImageSuffix.get()}"
+                "-PsparkPlatform.baseImageSuffix=${baseImageSuffixFor(platformLine.get())}"
             )
         }
         taskName
@@ -331,8 +345,8 @@ val jibPublishAllPlatformImageTaskNames = defaultImageVariantsByLine.keys.map { 
             "-PsparkPlatform.line=$normalizedLine",
             "-PsparkPlatform.variants=${defaultImageVariantsByLine.getValue(normalizedLine).joinToString(",")}",
             "-PsparkPlatform.imageRepository=${imageRepository.get()}",
-            "-PsparkPlatform.baseImageRepository=${baseImageRepository.get()}",
-            "-PsparkPlatform.baseImageSuffix=${baseImageSuffix.get()}"
+            "-PsparkPlatform.baseImageRepository=${baseImageRepositoryFor(normalizedLine)}",
+            "-PsparkPlatform.baseImageSuffix=${baseImageSuffixFor(normalizedLine)}"
         )
     }
     taskName

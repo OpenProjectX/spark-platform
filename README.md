@@ -109,8 +109,9 @@ Docker Library tags, including Spark 3.5.8 Scala 2.13 and Spark 3.5.8
 Hadoop-provided images. The Hadoop-provided Spark 3.5.8 Scala 2.13 image uses
 Gradle and Jib to assemble `/opt/spark/jars` from version-catalog-managed Spark
 artifacts instead of unpacking the Apache binary distribution. Use the
-`spark3-scala213` line for that image so Scala 2.13 Spark and variant
-dependencies stay separate from the official Scala 2.12 `spark3` line.
+`spark3-scala213` line for Spark 3.5.8 Scala 2.13 platform images; it defaults
+to the project-owned `ghcr.io/openprojectx/spark` base repository because
+Docker Library `spark` does not publish those Scala 2.13 Java 17 tags.
 
 The aggregate `jibDockerBuildPlatformImages` task builds each selected variant
 individually, then builds one combined image for each Scala-compatible variant
