@@ -22,6 +22,15 @@ concurrency:
 
 jobs:
   release:
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        (
+          !contains(github.event.head_commit.message, '[skip ci]') &&
+          !contains(github.event.head_commit.message, '[ci skip]') &&
+          !contains(github.event.head_commit.message, '[skip actions]')
+        )
+      }}
     runs-on: ubuntu-latest
 
     env:

@@ -129,6 +129,9 @@ configure<ReleaseExtension> {
     )
     versionPropertyFile.set("gradle.properties")
     tagTemplate.set("\$name-\$version")
+    preTagCommitMessage.set("[skip ci] Release ")
+    tagCommitMessage.set("[skip ci] Create tag ")
+    newVersionCommitMessage.set("[skip ci] Prepare next development version ")
 
     with(git) {
         requireBranch.set("master")
