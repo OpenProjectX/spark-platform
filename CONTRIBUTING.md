@@ -163,30 +163,40 @@ Kubernetes and Spark Operator use, while the runtime image should assemble
 
 ## Spark Base Image Model
 
-Spark base images are intentionally split into two layers:
+Spark base images are intentionally split so heavy OS work and jar ownership do
+not share the same layer:
 
 - Layout image:
   downloads and verifies the immutable Apache Spark binary distribution,
   extracts the Spark filesystem layout, preserves scripts/configuration needed
   by Kubernetes and Spark Operator, and removes distribution jars from
   `/opt/spark/jars`.
+- Feature layout images:
+  start from the stripped layout image and install heavyweight OS features such
+  as `python3`, `r`, or `python3-r`.
 - Runtime image:
-  starts from a published layout image and adds only Gradle-resolved runtime
-  jars from `gradle/libs.versions.toml` and `platform-bom`.
-- Feature images:
-  start from the runtime image and install image features such as `python3`,
-  `r`, or `python3-r`.
+  starts from a published layout or feature layout image and adds only
+  Gradle-resolved runtime jars from `gradle/libs.versions.toml` and
+  `platform-bom`.
 
-This keeps the heavy network/download layer out of the normal release path, but
-still lets a release pick up Spark, Hadoop, Scala, and related jar changes from
-the version catalog. The release task publishes runtime base images first, then
-publishes `ghcr.io/openprojectx/spark-platform` images on top of them.
+This keeps the heavy Spark distribution download and apt install layers out of
+the normal release path, but still lets a release pick up Spark, Hadoop, Scala,
+and related jar changes from the version catalog. The release task publishes
+runtime base images first, then publishes `ghcr.io/openprojectx/spark-platform`
+images on top of them.
 
 Manual layout image publish:
 
 ```bash
 env GRADLE_USER_HOME=/data/.gradle ./gradlew :spark-base-image:dockerPushSparkBaseLayoutImages
 ```
+
+This publishes both root layout tags such as
+`ghcr.io/openprojectx/spark:3.5.8-scala2.13-java17-layout-ubuntu` and feature
+layout tags such as
+`ghcr.io/openprojectx/spark:3.5.8-scala2.13-java17-python3-r-layout-ubuntu`.
+Run it when Spark distributions, base OS packages, Python, R, or CVE fixes need
+to move.
 
 Release-managed runtime image publish:
 
@@ -197,8 +207,12 @@ env GRADLE_USER_HOME=/data/.gradle ./gradlew :spark-base-image:dockerPushSparkBa
 Full local rebuild, including layout and runtime images:
 
 ```bash
-env GRADLE_USER_HOME=/data/.gradle ./gradlew :spark-base-image:dockerBuildSparkBaseImages
+env GRADLE_USER_HOME=/data/.gradle ./gradlew :spark-base-image:dockerBuildSparkBaseImages \
+  -PsparkBaseImage.localLayoutImages=true
 ```
+
+Use `sparkBaseImage.localLayoutImages=true` only for local rebuilds. Release
+builds intentionally use published layout images from `ghcr.io/openprojectx/spark`.
 
 List jars in a runtime base image:
 
@@ -212,7 +226,7 @@ Check that a layout image has no distribution jars:
 
 ```bash
 docker run --rm --entrypoint sh \
-  ghcr.io/openprojectx/spark:3.5.8-scala2.13-java17-layout-ubuntu \
+  ghcr.io/openprojectx/spark:3.5.8-scala2.13-java17-python3-r-layout-ubuntu \
   -c 'find /opt/spark/jars -maxdepth 1 -type f -name "*.jar" -printf "%f\n" | sort'
 ```
 

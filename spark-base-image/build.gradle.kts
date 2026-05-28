@@ -15,6 +15,9 @@ val requestedLine = providers.gradleProperty("sparkBaseImage.line").orElse("spar
 val requestedRuntimeBundle = providers.gradleProperty("sparkBaseImage.runtimeBundle")
 val requestedBaseImage = providers.gradleProperty("sparkBaseImage.baseImage")
 val jibImageTag = providers.gradleProperty("sparkBaseImage.imageTag")
+val useLocalLayoutImages = providers.gradleProperty("sparkBaseImage.localLayoutImages")
+    .map(String::toBoolean)
+    .orElse(false)
 
 fun catalogVersion(name: String): String {
     return libsCatalog.findVersion(name)
@@ -53,12 +56,27 @@ data class SparkImageType(
     val installR: Boolean = false
 )
 
+data class SparkLayoutImageSpec(
+    val line: SparkLineSpec,
+    val imageType: SparkImageType
+) {
+    val name: String = "${line.name}${imageType.name}Layout"
+    val isRootImage: Boolean = imageType.tagFeatures.isEmpty()
+    val tag: String = buildList {
+        add(line.sparkVersion)
+        add("scala${line.scalaBinaryVersion}")
+        add("java${line.javaVersion}")
+        addAll(imageType.tagFeatures)
+        add("layout")
+        add("ubuntu")
+    }.joinToString("-")
+}
+
 data class SparkRuntimeImageSpec(
     val line: SparkLineSpec,
     val imageType: SparkImageType
 ) {
     val name: String = "${line.name}${imageType.name}"
-    val isRootImage: Boolean = imageType.tagFeatures.isEmpty()
     val tag: String = buildList {
         add(line.sparkVersion)
         add("scala${line.scalaBinaryVersion}")
@@ -131,6 +149,13 @@ val sparkImageTypes = listOf(
 val runtimeImageSpecs = sparkLines.flatMap { line ->
     sparkImageTypes.map { imageType -> SparkRuntimeImageSpec(line, imageType) }
 }
+val layoutImageSpecs = sparkLines.flatMap { line ->
+    sparkImageTypes.map { imageType -> SparkLayoutImageSpec(line, imageType) }
+}
+
+fun layoutImageSpec(line: SparkLineSpec, imageType: SparkImageType): SparkLayoutImageSpec {
+    return SparkLayoutImageSpec(line, imageType)
+}
 
 val runtimeJars = configurations.create("runtimeJars") {
     isCanBeConsumed = false
@@ -185,64 +210,43 @@ fun taskNameSuffix(value: String): String {
         .joinToString("") { part -> part.replaceFirstChar { it.uppercaseChar() } }
 }
 
-val dockerBuildLayoutTaskNames = sparkLines.map { line ->
-    val taskName = "dockerBuild${taskNameSuffix(line.name)}Layout"
-    tasks.register<Exec>(taskName) {
-        group = "docker"
-        description = "Builds the stripped Spark ${line.sparkVersion} ${line.scalaBinaryVersion} layout image."
-        workingDir = projectDir
-
-        val sparkArchiveBaseUrl = line.archiveBaseUrl()
-        commandLine(
-            "docker",
-            "build",
-            "--build-arg",
-            "SPARK_TGZ_URL=$sparkArchiveBaseUrl",
-            "--build-arg",
-            "SPARK_TGZ_ASC_URL=$sparkArchiveBaseUrl.asc",
-            "--build-arg",
-            "JAVA_IMAGE=eclipse-temurin:${line.javaVersion}-jammy",
-            "--build-arg",
-            "STRIP_SPARK_JARS=true",
-            "-t",
-            "${imageRepository.get()}:${line.layoutTag}",
-            "."
-        )
-    }
-    taskName
-}
-
-val dockerBuildRuntimeTaskNames = runtimeImageSpecs.map { spec ->
+val dockerBuildLayoutTaskNames = layoutImageSpecs.map { spec ->
     val taskName = "dockerBuild${taskNameSuffix(spec.name)}"
     tasks.register<Exec>(taskName) {
         group = "docker"
-        description = "Builds the clean Spark ${spec.line.sparkVersion} ${spec.line.scalaBinaryVersion} ${spec.imageType.name} runtime image."
+        description = "Builds the stripped Spark ${spec.line.sparkVersion} ${spec.line.scalaBinaryVersion} ${spec.imageType.name} layout image."
         workingDir = projectDir
 
         if (spec.isRootImage) {
+            val sparkArchiveBaseUrl = spec.line.archiveBaseUrl()
             commandLine(
-                rootProject.layout.projectDirectory.file("gradlew").asFile.absolutePath,
-                ":spark-base-image:jibDockerBuild",
-                "--no-configuration-cache",
-                "-PsparkBaseImage.repository=${imageRepository.get()}",
-                "-PsparkBaseImage.line=${spec.line.line}",
-                "-PsparkBaseImage.runtimeBundle=${spec.line.runtimeBundle}",
-                "-PsparkBaseImage.baseImage=${imageRepository.get()}:${spec.line.layoutTag}",
-                "-PsparkBaseImage.imageTag=${spec.tag}"
+                "docker",
+                "build",
+                "--build-arg",
+                "SPARK_TGZ_URL=$sparkArchiveBaseUrl",
+                "--build-arg",
+                "SPARK_TGZ_ASC_URL=$sparkArchiveBaseUrl.asc",
+                "--build-arg",
+                "JAVA_IMAGE=eclipse-temurin:${spec.line.javaVersion}-jammy",
+                "--build-arg",
+                "STRIP_SPARK_JARS=true",
+                "-t",
+                "${imageRepository.get()}:${spec.tag}",
+                "."
             )
         } else {
-            dependsOn("dockerBuild${taskNameSuffix("${spec.line.name}Scala")}")
-            val baseTag = SparkRuntimeImageSpec(
+            val rootLayoutTag = layoutImageSpec(
                 line = spec.line,
                 imageType = sparkImageTypes.first { it.tagFeatures.isEmpty() }
             ).tag
+            dependsOn("dockerBuild${taskNameSuffix("${spec.line.name}ScalaLayout")}")
             commandLine(
                 "docker",
                 "build",
                 "-f",
                 "Dockerfile.variant",
                 "--build-arg",
-                "BASE_IMAGE=${imageRepository.get()}:$baseTag",
+                "BASE_IMAGE=${imageRepository.get()}:$rootLayoutTag",
                 "--build-arg",
                 "INSTALL_PYTHON3=${spec.imageType.installPython3}",
                 "--build-arg",
@@ -254,6 +258,34 @@ val dockerBuildRuntimeTaskNames = runtimeImageSpecs.map { spec ->
                 "."
             )
         }
+    }
+    taskName
+}
+
+val dockerBuildRuntimeTaskNames = runtimeImageSpecs.map { spec ->
+    val taskName = "dockerBuild${taskNameSuffix(spec.name)}"
+    tasks.register<Exec>(taskName) {
+        group = "docker"
+        description = "Builds the clean Spark ${spec.line.sparkVersion} ${spec.line.scalaBinaryVersion} ${spec.imageType.name} runtime image."
+        workingDir = projectDir
+
+        val layoutTag = layoutImageSpec(spec.line, spec.imageType).tag
+        val layoutImage = "${imageRepository.get()}:$layoutTag"
+        val baseImage = if (useLocalLayoutImages.get()) {
+            "docker://$layoutImage"
+        } else {
+            layoutImage
+        }
+        commandLine(
+            rootProject.layout.projectDirectory.file("gradlew").asFile.absolutePath,
+            ":spark-base-image:jibDockerBuild",
+            "--no-configuration-cache",
+            "-PsparkBaseImage.repository=${imageRepository.get()}",
+            "-PsparkBaseImage.line=${spec.line.line}",
+            "-PsparkBaseImage.runtimeBundle=${spec.line.runtimeBundle}",
+            "-PsparkBaseImage.baseImage=$baseImage",
+            "-PsparkBaseImage.imageTag=${spec.tag}"
+        )
     }
     taskName
 }
@@ -282,13 +314,13 @@ tasks.register("dockerBuildSparkBaseRuntimeImages") {
     dependsOn(dockerBuildRuntimeTaskNames)
 }
 
-val dockerPushLayoutTaskNames = sparkLines.map { line ->
-    val taskName = "dockerPush${taskNameSuffix(line.name)}Layout"
+val dockerPushLayoutTaskNames = layoutImageSpecs.map { spec ->
+    val taskName = "dockerPush${taskNameSuffix(spec.name)}"
     tasks.register<Exec>(taskName) {
         group = "docker"
-        description = "Pushes ${imageRepository.get()}:${line.layoutTag}."
-        dependsOn("dockerBuild${taskNameSuffix(line.name)}Layout")
-        commandLine("docker", "push", "${imageRepository.get()}:${line.layoutTag}")
+        description = "Pushes ${imageRepository.get()}:${spec.tag}."
+        dependsOn("dockerBuild${taskNameSuffix(spec.name)}")
+        commandLine("docker", "push", "${imageRepository.get()}:${spec.tag}")
     }
     taskName
 }

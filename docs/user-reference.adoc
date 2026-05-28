@@ -411,18 +411,21 @@ filesystem layout for Spark Operator and Kubernetes use, but the final
 `/opt/spark/jars` contents are resolved by Gradle from the platform catalog and
 BOM.
 
-Each supported line is built in two steps:
+Each supported line is built in three logical steps:
 
 * a layout image downloads and verifies the Apache Spark distribution, extracts
   `/opt/spark`, and strips `/opt/spark/jars` in the same Docker layer
-* a runtime image starts from the layout image and uses Jib to add
+* feature layout images start from the stripped layout image and install OS
+  features such as Python 3, R, or both
+* runtime images start from the matching layout image and use Jib to add
   Gradle-managed Spark, Scala, Hadoop, and related runtime jars
 
 Layout images are released independently through the manual `Base Images`
-GitHub workflow because they download and verify the Apache Spark distribution.
-Runtime base images are released by the normal release workflow before platform
-images are published, so catalog-managed Spark, Hadoop, Scala, and runtime jar
-changes move with the platform release.
+GitHub workflow because they download and verify the Apache Spark distribution
+and perform heavy apt installs for Python/R variants. Runtime base images are
+released by the normal release workflow before platform images are published, so
+catalog-managed Spark, Hadoop, Scala, and runtime jar changes move with the
+platform release.
 
 Current runtime base images:
 
@@ -449,17 +452,24 @@ Current runtime base images:
   `4.0.1-scala2.13-java17-python3-r-ubuntu`
 |===
 
-Each line also publishes a layout image with `layout` in the tag, for example
-`ghcr.io/openprojectx/spark:3.5.8-scala2.12-java17-layout-ubuntu`. Layout images
-are build inputs for runtime images and are not intended as Spark runtime
-images by themselves.
+Each runtime tag also has a matching layout tag with `layout` before `ubuntu`,
+for example `ghcr.io/openprojectx/spark:3.5.8-scala2.12-java17-layout-ubuntu`
+and
+`ghcr.io/openprojectx/spark:3.5.8-scala2.12-java17-python3-r-layout-ubuntu`.
+Layout images are build inputs for runtime images and are not intended as Spark
+runtime images by themselves.
 
 Build all base images locally:
 
 [source,bash]
 ----
-env GRADLE_USER_HOME=/data/.gradle ./gradlew :spark-base-image:dockerBuildSparkBaseImages
+env GRADLE_USER_HOME=/data/.gradle ./gradlew :spark-base-image:dockerBuildSparkBaseImages \
+  -PsparkBaseImage.localLayoutImages=true
 ----
+
+The `sparkBaseImage.localLayoutImages=true` switch makes Jib read layout images
+from the local Docker daemon with `docker://`. Release builds omit that switch
+and use already-published layout images from `ghcr.io/openprojectx/spark`.
 
 Build and publish only layout images:
 
