@@ -73,6 +73,10 @@ Publish project-owned Spark base images:
 env GRADLE_USER_HOME=/data/.gradle ./gradlew :spark-base-image:dockerPushSparkBaseImages
 ```
 
+Base images are released separately through the `Base Images` GitHub workflow.
+The normal release workflow does not rebuild or republish them; platform image
+tasks consume the already-published `ghcr.io/openprojectx/spark` images.
+
 List jars in a built platform image:
 
 ```bash
@@ -139,6 +143,9 @@ When the official Spark Docker repository does not publish the required base
 image, add the distribution to `spark-base-image/build.gradle.kts`, keep the
 Dockerfile parameterized by distribution URL, and publish it through the
 `Base Images` workflow or `:spark-base-image:dockerPushSparkBaseImages`.
+Do not wire platform image tasks or the normal release task to build base
+images; base images are slower-moving infrastructure and should be promoted
+independently before platform images consume them.
 For Hadoop-provided images, prefer Gradle/Jib-managed jar assembly so the Spark
 and Scala artifacts remain visible in the version catalog and Gradle dependency
 graph.

@@ -111,7 +111,9 @@ Gradle and Jib to assemble `/opt/spark/jars` from version-catalog-managed Spark
 artifacts instead of unpacking the Apache binary distribution. Use the
 `spark3-scala213` line for Spark 3.5.8 Scala 2.13 platform images; it defaults
 to the project-owned `ghcr.io/openprojectx/spark` base repository because
-Docker Library `spark` does not publish those Scala 2.13 Java 17 tags.
+Docker Library `spark` does not publish those Scala 2.13 Java 17 tags. Base
+images are released separately through the `Base Images` workflow; platform
+image release tasks consume the published GHCR images and do not rebuild them.
 
 The aggregate `jibDockerBuildPlatformImages` task builds each selected variant
 individually, then builds one combined image for each Scala-compatible variant

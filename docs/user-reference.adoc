@@ -410,6 +410,10 @@ The `spark-base-image` module builds project-owned Spark base images for Spark
 distributions that Docker Library `spark` does not publish with the exact tag
 shape needed by the platform.
 
+Base images are released independently through the `Base Images` GitHub
+workflow. Platform image release tasks do not build or publish base images; they
+consume the already-published `ghcr.io/openprojectx/spark` images.
+
 Current base images:
 
 [cols="1,1", options="header"]
