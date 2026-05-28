@@ -131,12 +131,13 @@ class SparkPlatformPlugin : Plugin<Project> {
         val image = platformBaseImageReference(project, extension)
         val toImage = "${project.group}/${project.name}:${project.version}".lowercase()
         val jvmFlags = managedJvmOptions(extension)
+        val platformOverrideClasspath = managedOverrideClasspathEntries(project, extension)
 
         jib.from { it.setImage(image) }
         jib.to { it.setImage(toImage) }
         jib.container {
             it.setJvmFlags((jvmFlags + it.jvmFlags).distinct())
-            it.setExtraClasspath((listOf(PLATFORM_JARS_CLASSPATH) + it.extraClasspath).distinct())
+            it.setExtraClasspath((platformOverrideClasspath + PLATFORM_JARS_CLASSPATH + it.extraClasspath).distinct())
         }
     }
 
@@ -168,6 +169,12 @@ class SparkPlatformPlugin : Plugin<Project> {
 
     private fun managedJvmOptions(extension: SparkPlatformExtension): List<String> {
         return SparkPlatformJvmOptions.defaults(extension.line.get(), extension.variants.get())
+    }
+
+    private fun managedOverrideClasspathEntries(project: Project, extension: SparkPlatformExtension): List<String> {
+        return project.versionCatalog()
+            .managedOverrideJarNames(extension.line.get())
+            .map { jarName -> "/opt/spark/jars/$jarName" }
     }
 
     private fun Project.isOfficialBuild(): Boolean {
@@ -226,6 +233,12 @@ class SparkPlatformPlugin : Plugin<Project> {
         }
     }
 
+    private fun VersionCatalog.managedOverrideJarNames(line: String): List<String> {
+        return bundle(SparkPlatformCatalog.managedBundle(line))
+            .filter { dependency -> dependency.module.group in PLATFORM_OVERRIDE_GROUPS }
+            .map { dependency -> "${dependency.module.name}-${dependency.requiredVersion()}.jar" }
+    }
+
     private fun MinimalExternalModuleDependency.requiredVersion(): String {
         val version = versionConstraint.requiredVersion
             .ifBlank { versionConstraint.preferredVersion }
@@ -243,5 +256,6 @@ class SparkPlatformPlugin : Plugin<Project> {
         const val BOM_CONFIGURATION = "sparkPlatformBom"
         const val JAVA_EXEC_RUNTIME_CONFIGURATION = "sparkPlatformJavaExecRuntime"
         const val PLATFORM_JARS_CLASSPATH = "/opt/spark/jars/*"
+        val PLATFORM_OVERRIDE_GROUPS = setOf("org.apache.hadoop")
     }
 }

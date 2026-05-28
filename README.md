@@ -100,8 +100,10 @@ env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuildPlatf
 Platform images use Apache Spark base images such as
 `spark:3.5.8-scala2.12-java17-python3-r-ubuntu` and
 `spark:4.0.1-scala2.13-java17-python3-r-ubuntu`, then layer only the selected
-variant jars into `/opt/spark/jars`. Variant names are part of the generated
-image tag, for example `spark4-iceberg-0.1.1-SNAPSHOT`.
+variant jars into `/opt/spark/jars`. Hadoop client jars are also layered from
+the version catalog so `hadoopSpark3` and `hadoopSpark4` override the versions
+bundled by the Spark distribution images. Variant names are part of the
+generated image tag, for example `spark4-iceberg-0.1.1-SNAPSHOT`.
 
 The `spark-base-image` module publishes project-owned base images to
 `ghcr.io/openprojectx/spark` for Spark distributions that are not available as

@@ -344,9 +344,13 @@ backed by project-owned base images under `ghcr.io/openprojectx/spark` because
 Docker Library `spark` does not publish Spark 3.5.8 Scala 2.13 Java 17 tags.
 It is not a suffix override on the Scala 2.12 `spark3` line.
 
-Only variant jars are layered into the Spark image. Spark, Hadoop, Scala, SLF4J,
-snappy, and the standard `org.lz4` provider are treated as base-image-provided
-dependencies and are not copied from Gradle resolution output.
+Variant jars and platform-owned override jars are layered into the Spark image.
+Spark, Scala, SLF4J, snappy, and the standard `org.lz4` provider are treated as
+base-image-provided dependencies and are not copied from Gradle resolution
+output. Hadoop client jars are platform-owned override jars: the
+`hadoopSpark3` and `hadoopSpark4` version-catalog entries are copied into
+`/opt/spark/jars` and are put before the broad Spark jars wildcard in
+application image classpaths.
 
 Build the default Spark 4 platform images:
 

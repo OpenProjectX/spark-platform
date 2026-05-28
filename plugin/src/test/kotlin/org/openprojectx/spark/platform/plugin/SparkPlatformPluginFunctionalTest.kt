@@ -159,6 +159,8 @@ class SparkPlatformPluginFunctionalTest {
         assertEquals(TaskOutcome.SUCCESS, result.task(":printJib")?.outcome)
         assertTrue(result.output.contains("fromImage=docker://registry.example.com/spark-platform:spark4-iceberg-1.2.3"))
         assertTrue(result.output.contains("jibJvmFlag=--add-opens=java.base/java.nio=ALL-UNNAMED"))
+        assertTrue(result.output.contains("jibExtraClasspath=/opt/spark/jars/hadoop-client-api-3.4.2.jar"))
+        assertTrue(result.output.contains("jibExtraClasspath=/opt/spark/jars/hadoop-client-runtime-3.4.2.jar"))
         assertTrue(result.output.contains("jibExtraClasspath=/opt/spark/jars/*"))
     }
 

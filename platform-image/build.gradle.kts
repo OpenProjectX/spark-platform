@@ -1,4 +1,6 @@
 import org.gradle.api.artifacts.VersionCatalogsExtension
+import org.gradle.api.artifacts.ExternalModuleDependencyBundle
+import org.gradle.api.artifacts.MinimalExternalModuleDependency
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import org.gradle.api.tasks.Exec
 
@@ -65,9 +67,11 @@ val capabilityResolutionRules = listOf(
         reason = "Paimon's Spark bundle expects at.yawk.lz4:lz4-java when both LZ4 providers are present."
     )
 )
+val platformOverrideGroups = setOf(
+    "org.apache.hadoop"
+)
 val baseProvidedGroups = setOf(
     "com.google.code.findbugs",
-    "org.apache.hadoop",
     "org.apache.spark",
     "org.lz4",
     "org.scala-lang",
@@ -105,6 +109,43 @@ fun managedBundleName(line: String): String {
     return "spark-platform-${line.trim().lowercase()}-managed"
 }
 
+fun bundle(name: String): ExternalModuleDependencyBundle {
+    return libsCatalog.findBundle(name)
+        .orElseThrow {
+            IllegalArgumentException(
+                "Version catalog bundle '$name' is missing. Add it to gradle/libs.versions.toml."
+            )
+        }
+        .get()
+}
+
+fun MinimalExternalModuleDependency.requiredVersion(): String {
+    val version = versionConstraint.requiredVersion
+        .ifBlank { versionConstraint.preferredVersion }
+        .ifBlank { versionConstraint.strictVersion }
+
+    require(version.isNotBlank()) {
+        "Catalog dependency '${module.group}:${module.name}' must declare a version."
+    }
+
+    return version
+}
+
+fun managedOverrideDependencies(line: String): List<MinimalExternalModuleDependency> {
+    return bundle(managedBundleName(line.trim().lowercase()))
+        .filter { dependency -> dependency.module.group in platformOverrideGroups }
+}
+
+fun managedOverrideJarNames(line: String): List<String> {
+    return managedOverrideDependencies(line).map { dependency ->
+        "${dependency.module.name}-${dependency.requiredVersion()}.jar"
+    }
+}
+
+fun managedOverrideClasspath(line: String): String {
+    return managedOverrideJarNames(line).joinToString(":") { jarName -> "/opt/spark/jars/$jarName" }
+}
+
 fun sparkVersion(line: String): String {
     val versionName = line.trim().lowercase()
     return libsCatalog.findVersion(versionName)
@@ -134,13 +175,7 @@ fun baseImageSuffixFor(line: String): String {
 
 fun scalaBinaryVersions(bundleNames: Iterable<String>): Set<String> {
     return bundleNames.flatMap { bundleName ->
-        libsCatalog.findBundle(bundleName)
-            .orElseThrow {
-                IllegalArgumentException(
-                    "Version catalog bundle '$bundleName' is missing. Add it to gradle/libs.versions.toml."
-                )
-            }
-            .get()
+        bundle(bundleName)
             .mapNotNull { dependency ->
                 scalaBinaryVersionPattern.matchEntire(dependency.module.name)?.groupValues?.get(1)
             }
@@ -222,24 +257,19 @@ fun taskNameSuffix(value: String): String {
 dependencies {
     add(platformJars.name, platform(project(":platform-bom")))
 
+    managedOverrideDependencies(platformLine.get()).forEach { dependency ->
+        add(platformJars.name, dependency)
+    }
+
     variants.get().forEach { variant ->
         val bundleName = variantBundleName(platformLine.get(), variant)
-        val bundle = libsCatalog.findBundle(bundleName)
-            .orElseThrow {
-                IllegalArgumentException(
-                    "Version catalog bundle '$bundleName' is missing. Add it to gradle/libs.versions.toml."
-                )
-            }
-            .get()
-
-        bundle.forEach { dependency ->
+        bundle(bundleName).forEach { dependency ->
             add(platformJars.name, dependency)
         }
     }
 }
 
 platformJars.exclude(group = "org.apache.spark")
-platformJars.exclude(group = "org.apache.hadoop")
 platformJars.exclude(group = "org.lz4")
 configurations.named(platformJars.name).configure {
     baseProvidedGroups.forEach { group ->
@@ -272,6 +302,10 @@ jib {
         }
     }
     container {
+        val overrideClasspath = managedOverrideClasspath(platformLine.get())
+        if (overrideClasspath.isNotBlank()) {
+            environment = mapOf("SPARK_DIST_CLASSPATH" to overrideClasspath)
+        }
         entrypoint = listOf("sh", "-c", "echo Spark Platform image: variant jars are in /opt/spark/jars")
     }
 }
