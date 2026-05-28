@@ -219,17 +219,19 @@ when set to `true`.
 
 | `sparkPlatform.baseImageRepository`
 | Source repository for the Spark base image. Defaults to Docker Library
-`spark`. Use `ghcr.io/openprojectx/spark` for base images built by this
-project.
+`spark`, except `spark3-scala213`, which defaults to
+`ghcr.io/openprojectx/spark`.
 
 | `sparkPlatform.baseImageSuffix`
 | Optional suffix for the Apache Spark base image. Defaults to
-`-java17-python3-r-ubuntu`.
+`-java17-python3-r-ubuntu`, except `spark3-scala213`, which defaults to
+`-java17-hadoop-provided-ubuntu`.
 
 | `sparkPlatform.variants`
 | Comma-separated variants, for example `iceberg,hudi`. Platform image defaults
-are line-aware: Spark 3 and Spark 4 default to
-`iceberg,hudi,paimon,openlineage`.
+are line-aware. `spark3` and `spark4` default to
+`iceberg,hudi,paimon,openlineage`; `spark3-scala213` defaults to
+`iceberg,openlineage` because Paimon Spark 3.5 is Scala 2.12-only.
 |===
 
 == Version Matrix
@@ -338,6 +340,10 @@ The suffix can be overridden with `-PsparkPlatform.baseImageSuffix=...`, but
 the default is intentionally fixed to Java 17, Python 3, R, and Ubuntu.
 Spark 3 uses Scala 2.12 artifacts because the official Apache Spark 3.5 Docker
 images are published with Scala 2.12 tags. Spark 4 uses Scala 2.13 artifacts.
+Use `spark3-scala213` when you need Spark 3.5.8 with Scala 2.13. That line is
+backed by the project-owned Hadoop-provided base image and Scala 2.13 Spark
+dependencies assembled by Gradle/Jib; it is not a suffix override on the
+Scala 2.12 `spark3` line.
 
 Only variant jars are layered into the Spark image. Spark, Hadoop, Scala, SLF4J,
 snappy, and the standard `org.lz4` provider are treated as base-image-provided
@@ -423,17 +429,17 @@ Current base images:
 | `ghcr.io/openprojectx/spark:3.5.8-scala2.13-java17-python3-r-ubuntu`
 | `spark-3.5.8-bin-hadoop3-scala2.13.tgz` plus Python 3 and R
 
-| `ghcr.io/openprojectx/spark:3.5.8-scala2.12-java17-hadoop-provided-ubuntu`
-| `spark-3.5.8-bin-without-hadoop.tgz`
+| `ghcr.io/openprojectx/spark:3.5.8-scala2.13-java17-hadoop-provided-ubuntu`
+| Gradle/Jib-managed Spark 3.5.8 Scala 2.13 jars without Hadoop client jars
 
-| `ghcr.io/openprojectx/spark:3.5.8-scala2.12-java17-hadoop-provided-python3-ubuntu`
-| `spark-3.5.8-bin-without-hadoop.tgz` plus Python 3
+| `ghcr.io/openprojectx/spark:3.5.8-scala2.13-java17-hadoop-provided-python3-ubuntu`
+| Gradle/Jib-managed Spark 3.5.8 Scala 2.13 jars without Hadoop client jars, plus Python 3
 
-| `ghcr.io/openprojectx/spark:3.5.8-scala2.12-java17-hadoop-provided-r-ubuntu`
-| `spark-3.5.8-bin-without-hadoop.tgz` plus R
+| `ghcr.io/openprojectx/spark:3.5.8-scala2.13-java17-hadoop-provided-r-ubuntu`
+| Gradle/Jib-managed Spark 3.5.8 Scala 2.13 jars without Hadoop client jars, plus R
 
-| `ghcr.io/openprojectx/spark:3.5.8-scala2.12-java17-hadoop-provided-python3-r-ubuntu`
-| `spark-3.5.8-bin-without-hadoop.tgz` plus Python 3 and R
+| `ghcr.io/openprojectx/spark:3.5.8-scala2.13-java17-hadoop-provided-python3-r-ubuntu`
+| Gradle/Jib-managed Spark 3.5.8 Scala 2.13 jars without Hadoop client jars, plus Python 3 and R
 |===
 
 Build them locally:
@@ -450,16 +456,14 @@ Publish them:
 env GRADLE_USER_HOME=/data/.gradle ./gradlew :spark-base-image:dockerPushSparkBaseImages
 ----
 
-Use a project-owned base image for a platform image by overriding the base
-repository and suffix:
+Build a platform image on the project-owned Spark 3.5.8 Scala 2.13
+Hadoop-provided base image:
 
 [source,bash]
 ----
 env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuild \
-  -PsparkPlatform.line=spark3 \
-  -PsparkPlatform.variants=iceberg \
-  -PsparkPlatform.baseImageRepository=ghcr.io/openprojectx/spark \
-  -PsparkPlatform.baseImageSuffix=-java17-hadoop-provided-ubuntu
+  -PsparkPlatform.line=spark3-scala213 \
+  -PsparkPlatform.variants=iceberg
 ----
 
 == Application Images

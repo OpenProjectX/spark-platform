@@ -19,6 +19,7 @@ FROM ${BASE_IMAGE}
 
 ARG INSTALL_PYTHON3=false
 ARG INSTALL_R=false
+ARG RUNTIME_USER=spark
 
 USER root
 
@@ -32,4 +33,4 @@ RUN set -ex; \
     fi; \
     rm -rf /var/lib/apt/lists/*
 
-USER spark
+USER ${RUNTIME_USER}

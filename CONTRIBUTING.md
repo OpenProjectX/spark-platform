@@ -105,7 +105,10 @@ docker run --rm --entrypoint sh \
 
 1. Check the Apache release archive for the target Spark version and confirm the
    binary distributions that exist, especially `bin-hadoop3`,
-   `bin-hadoop3-scala2.13`, and `bin-without-hadoop`.
+   `bin-hadoop3-scala2.13`, and Hadoop-provided distributions.
+   When a required Scala/Hadoop combination does not exist as an Apache binary
+   distribution, model it as a separate Spark line and assemble its jars through
+   Gradle/Jib instead of reusing a different Scala binary distribution.
 2. Check `versions.json` in
    `https://github.com/apache/spark-docker.git` and Docker Hub tags for the
    matching official Spark base image. The platform-image build uses tags like
@@ -136,6 +139,9 @@ When the official Spark Docker repository does not publish the required base
 image, add the distribution to `spark-base-image/build.gradle.kts`, keep the
 Dockerfile parameterized by distribution URL, and publish it through the
 `Base Images` workflow or `:spark-base-image:dockerPushSparkBaseImages`.
+For Hadoop-provided images, prefer Gradle/Jib-managed jar assembly so the Spark
+and Scala artifacts remain visible in the version catalog and Gradle dependency
+graph.
 
 ## Pull Request Checklist
 

@@ -31,7 +31,7 @@ subprojects {
 
         extensions.configure<PublishingExtension>("publishing") {
             publications {
-                if (project.name != "plugin" && findByName("mavenJava") == null) {
+                if (project.name != "plugin" && project.name != "spark-base-image" && findByName("mavenJava") == null) {
                     create<MavenPublication>("mavenJava") {
                         from(components["java"])
                         artifactId = project.name

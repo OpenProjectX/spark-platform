@@ -106,7 +106,11 @@ image tag, for example `spark4-iceberg-0.1.1-SNAPSHOT`.
 The `spark-base-image` module publishes project-owned base images to
 `ghcr.io/openprojectx/spark` for Spark distributions that are not available as
 Docker Library tags, including Spark 3.5.8 Scala 2.13 and Spark 3.5.8
-Hadoop-provided images.
+Hadoop-provided images. The Hadoop-provided Spark 3.5.8 Scala 2.13 image uses
+Gradle and Jib to assemble `/opt/spark/jars` from version-catalog-managed Spark
+artifacts instead of unpacking the Apache binary distribution. Use the
+`spark3-scala213` line for that image so Scala 2.13 Spark and variant
+dependencies stay separate from the official Scala 2.12 `spark3` line.
 
 The aggregate `jibDockerBuildPlatformImages` task builds each selected variant
 individually, then builds one combined image for each Scala-compatible variant

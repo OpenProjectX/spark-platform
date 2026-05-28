@@ -6,6 +6,7 @@ kotlinxCoroutines = "1.10.2"
 junitJupiter = "6.0.2"
 jib = "3.5.2"
 spark3 = "3.5.8"
+"spark3-scala213" = "3.5.8"
 spark4 = "4.0.1"
 hadoopSpark3 = "3.4.2"
 hadoopSpark4 = "3.4.2"
@@ -33,6 +34,17 @@ spark3Iceberg = { module = "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12", 
 spark3Hudi = { module = "org.apache.hudi:hudi-spark3.5-bundle_2.12", version.ref = "hudi" }
 spark3Paimon = { module = "org.apache.paimon:paimon-spark-3.5_2.12", version.ref = "paimon" }
 spark3Openlineage = { module = "io.openlineage:openlineage-spark_2.12", version.ref = "openlineage" }
+spark3Scala213Core = { module = "org.apache.spark:spark-core_2.13", version.ref = "spark3-scala213" }
+spark3Scala213Sql = { module = "org.apache.spark:spark-sql_2.13", version.ref = "spark3-scala213" }
+spark3Scala213Hive = { module = "org.apache.spark:spark-hive_2.13", version.ref = "spark3-scala213" }
+spark3Scala213HiveThriftserver = { module = "org.apache.spark:spark-hive-thriftserver_2.13", version.ref = "spark3-scala213" }
+spark3Scala213Yarn = { module = "org.apache.spark:spark-yarn_2.13", version.ref = "spark3-scala213" }
+spark3Scala213Kubernetes = { module = "org.apache.spark:spark-kubernetes_2.13", version.ref = "spark3-scala213" }
+spark3Scala213Mllib = { module = "org.apache.spark:spark-mllib_2.13", version.ref = "spark3-scala213" }
+spark3Scala213Graphx = { module = "org.apache.spark:spark-graphx_2.13", version.ref = "spark3-scala213" }
+spark3Scala213Repl = { module = "org.apache.spark:spark-repl_2.13", version.ref = "spark3-scala213" }
+spark3Scala213Iceberg = { module = "org.apache.iceberg:iceberg-spark-runtime-3.5_2.13", version.ref = "iceberg" }
+spark3Scala213Openlineage = { module = "io.openlineage:openlineage-spark_2.13", version.ref = "openlineage" }
 
 spark4Core = { module = "org.apache.spark:spark-core_2.13", version.ref = "spark4" }
 spark4Sql = { module = "org.apache.spark:spark-sql_2.13", version.ref = "spark4" }
@@ -57,6 +69,14 @@ spark-platform-spark3-variant-iceberg = ["spark3Iceberg"]
 spark-platform-spark3-variant-hudi = ["spark3Hudi"]
 spark-platform-spark3-variant-paimon = ["spark3Paimon"]
 spark-platform-spark3-variant-openlineage = ["spark3Openlineage"]
+
+spark-platform-spark3-scala213-managed = [
+    "spark3Scala213Core",
+    "spark3Scala213Sql",
+    "spark3Scala213Hive",
+]
+spark-platform-spark3-scala213-variant-iceberg = ["spark3Scala213Iceberg"]
+spark-platform-spark3-scala213-variant-openlineage = ["spark3Scala213Openlineage"]
 
 spark-platform-spark4-managed = [
     "spark4Core",

@@ -122,6 +122,27 @@ class SparkPlatformPluginFunctionalTest {
     }
 
     @Test
+    fun `spark3 scala 2_13 line uses only scala 2_13 Spark constraints`() {
+        writeFixture(
+            """
+            sparkPlatform {
+                line.set("spark3-scala213")
+                variants.set(listOf("iceberg"))
+            }
+            """.trimIndent()
+        )
+
+        val result = gradleRunner("printSparkPlatform").build()
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":printSparkPlatform")?.outcome)
+        assertTrue(result.output.contains("dependencyCount=0"))
+        assertTrue(result.output.contains("constraint=org.apache.spark:spark-sql_2.13:$spark3Version"))
+        assertTrue(result.output.contains("constraint=org.apache.iceberg:iceberg-spark-runtime-3.5_2.13:1.10.0"))
+        assertTrue(!result.output.contains("constraint=org.apache.spark:spark-sql_2.12:$spark3Version"))
+        assertTrue(!result.output.contains("constraint=org.apache.hadoop:hadoop-client-api"))
+    }
+
+    @Test
     fun `plugin configures jib to use the platform base image`() {
         writeFixture(
             """

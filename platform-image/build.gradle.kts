@@ -10,12 +10,32 @@ plugins {
 val platformLine = providers.gradleProperty("sparkPlatform.line").orElse("spark3")
 val imageRepository = providers.gradleProperty("sparkPlatform.imageRepository")
     .orElse("ghcr.io/openprojectx/spark-platform")
+data class BaseImageDefaults(
+    val repository: String,
+    val suffix: String
+)
+
+val baseImageDefaultsByLine = mapOf(
+    "spark3-scala213" to BaseImageDefaults(
+        repository = "ghcr.io/openprojectx/spark",
+        suffix = "-java17-hadoop-provided-ubuntu"
+    )
+)
 val baseImageRepository = providers.gradleProperty("sparkPlatform.baseImageRepository")
-    .orElse("spark")
+    .orElse(
+        providers.provider {
+            baseImageDefaultsByLine[platformLine.get().trim().lowercase()]?.repository ?: "spark"
+        }
+    )
 val baseImageSuffix = providers.gradleProperty("sparkPlatform.baseImageSuffix")
-    .orElse("-java17-python3-r-ubuntu")
+    .orElse(
+        providers.provider {
+            baseImageDefaultsByLine[platformLine.get().trim().lowercase()]?.suffix ?: "-java17-python3-r-ubuntu"
+        }
+    )
 val defaultImageVariantsByLine = mapOf(
     "spark3" to listOf("iceberg", "hudi", "paimon", "openlineage"),
+    "spark3-scala213" to listOf("iceberg", "openlineage"),
     "spark4" to listOf("iceberg", "hudi", "paimon", "openlineage")
 )
 val isolatedCombinedImageVariantsByLine = emptyMap<String, Set<String>>()
