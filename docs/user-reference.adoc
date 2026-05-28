@@ -418,9 +418,11 @@ Each supported line is built in two steps:
 * a runtime image starts from the layout image and uses Jib to add
   Gradle-managed Spark, Scala, Hadoop, and related runtime jars
 
-Base images are released independently through the `Base Images` GitHub
-workflow. Platform image release tasks do not build or publish base images; they
-consume the already-published `ghcr.io/openprojectx/spark` images.
+Layout images are released independently through the manual `Base Images`
+GitHub workflow because they download and verify the Apache Spark distribution.
+Runtime base images are released by the normal release workflow before platform
+images are published, so catalog-managed Spark, Hadoop, Scala, and runtime jar
+changes move with the platform release.
 
 Current runtime base images:
 
@@ -452,18 +454,26 @@ Each line also publishes a layout image with `layout` in the tag, for example
 are build inputs for runtime images and are not intended as Spark runtime
 images by themselves.
 
-Build them locally:
+Build all base images locally:
 
 [source,bash]
 ----
 env GRADLE_USER_HOME=/data/.gradle ./gradlew :spark-base-image:dockerBuildSparkBaseImages
 ----
 
-Publish them:
+Build and publish only layout images:
 
 [source,bash]
 ----
-env GRADLE_USER_HOME=/data/.gradle ./gradlew :spark-base-image:dockerPushSparkBaseImages
+env GRADLE_USER_HOME=/data/.gradle ./gradlew :spark-base-image:dockerPushSparkBaseLayoutImages
+----
+
+Build and publish only runtime base images from already-published layout
+images:
+
+[source,bash]
+----
+env GRADLE_USER_HOME=/data/.gradle ./gradlew :spark-base-image:dockerPushSparkBaseRuntimeImages
 ----
 
 Build a platform image on the project-owned Spark 3.5.8 Scala 2.13 base image:

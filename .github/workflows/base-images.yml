@@ -54,14 +54,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build base images
+      - name: Build layout images
         if: ${{ !inputs.publish }}
         run: |
-          ./gradlew :spark-base-image:dockerBuildSparkBaseImages \
+          ./gradlew :spark-base-image:dockerBuildSparkBaseLayoutImages \
             -PsparkBaseImage.repository="${IMAGE_REPOSITORY}"
 
-      - name: Publish base images
+      - name: Publish layout images
         if: ${{ inputs.publish }}
         run: |
-          ./gradlew :spark-base-image:dockerPushSparkBaseImages \
+          ./gradlew :spark-base-image:dockerPushSparkBaseLayoutImages \
             -PsparkBaseImage.repository="${IMAGE_REPOSITORY}"

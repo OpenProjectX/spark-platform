@@ -220,7 +220,6 @@ val dockerBuildRuntimeTaskNames = runtimeImageSpecs.map { spec ->
         workingDir = projectDir
 
         if (spec.isRootImage) {
-            dependsOn("dockerBuild${taskNameSuffix(spec.line.name)}Layout")
             commandLine(
                 rootProject.layout.projectDirectory.file("gradlew").asFile.absolutePath,
                 ":spark-base-image:jibDockerBuild",
@@ -228,7 +227,7 @@ val dockerBuildRuntimeTaskNames = runtimeImageSpecs.map { spec ->
                 "-PsparkBaseImage.repository=${imageRepository.get()}",
                 "-PsparkBaseImage.line=${spec.line.line}",
                 "-PsparkBaseImage.runtimeBundle=${spec.line.runtimeBundle}",
-                "-PsparkBaseImage.baseImage=docker://${imageRepository.get()}:${spec.line.layoutTag}",
+                "-PsparkBaseImage.baseImage=${imageRepository.get()}:${spec.line.layoutTag}",
                 "-PsparkBaseImage.imageTag=${spec.tag}"
             )
         } else {
@@ -271,6 +270,18 @@ tasks.register("dockerBuildSparkBaseImages") {
     dependsOn(dockerBuildLayoutTaskNames + dockerBuildRuntimeTaskNames)
 }
 
+tasks.register("dockerBuildSparkBaseLayoutImages") {
+    group = "docker"
+    description = "Builds stripped Spark distribution layout images."
+    dependsOn(dockerBuildLayoutTaskNames)
+}
+
+tasks.register("dockerBuildSparkBaseRuntimeImages") {
+    group = "docker"
+    description = "Builds Gradle-managed Spark runtime base images from published layout images."
+    dependsOn(dockerBuildRuntimeTaskNames)
+}
+
 val dockerPushLayoutTaskNames = sparkLines.map { line ->
     val taskName = "dockerPush${taskNameSuffix(line.name)}Layout"
     tasks.register<Exec>(taskName) {
@@ -297,4 +308,16 @@ tasks.register("dockerPushSparkBaseImages") {
     group = "docker"
     description = "Builds and pushes all clean Spark base images owned by this project."
     dependsOn(dockerPushLayoutTaskNames + dockerPushRuntimeTaskNames)
+}
+
+tasks.register("dockerPushSparkBaseLayoutImages") {
+    group = "docker"
+    description = "Builds and pushes stripped Spark distribution layout images."
+    dependsOn(dockerPushLayoutTaskNames)
+}
+
+tasks.register("dockerPushSparkBaseRuntimeImages") {
+    group = "docker"
+    description = "Builds and pushes Gradle-managed Spark runtime base images from published layout images."
+    dependsOn(dockerPushRuntimeTaskNames)
 }

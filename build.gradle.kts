@@ -122,6 +122,7 @@ configure<ReleaseExtension> {
     buildTasks.set(
         listOf(
             "integrationTest",
+            ":spark-base-image:dockerPushSparkBaseRuntimeImages",
             ":platform-image:jibPublishAllPlatformImages",
             "publishToSonatype",
             "closeAndReleaseSonatypeStagingRepository",

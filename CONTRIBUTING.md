@@ -61,21 +61,36 @@ env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuildPlatf
   -PsparkPlatform.line=spark4
 ```
 
-Build project-owned Spark base images:
+Build stripped Spark layout images:
 
 ```bash
-env GRADLE_USER_HOME=/data/.gradle ./gradlew :spark-base-image:dockerBuildSparkBaseImages
+env GRADLE_USER_HOME=/data/.gradle ./gradlew :spark-base-image:dockerBuildSparkBaseLayoutImages
 ```
 
-Publish project-owned Spark base images:
+Publish stripped Spark layout images:
 
 ```bash
-env GRADLE_USER_HOME=/data/.gradle ./gradlew :spark-base-image:dockerPushSparkBaseImages
+env GRADLE_USER_HOME=/data/.gradle ./gradlew :spark-base-image:dockerPushSparkBaseLayoutImages
 ```
 
-Base images are released separately through the `Base Images` GitHub workflow.
-The normal release workflow does not rebuild or republish them; platform image
-tasks consume the already-published `ghcr.io/openprojectx/spark` images.
+Build Gradle-managed Spark runtime base images from already-published layout
+images:
+
+```bash
+env GRADLE_USER_HOME=/data/.gradle ./gradlew :spark-base-image:dockerBuildSparkBaseRuntimeImages
+```
+
+Publish Gradle-managed Spark runtime base images:
+
+```bash
+env GRADLE_USER_HOME=/data/.gradle ./gradlew :spark-base-image:dockerPushSparkBaseRuntimeImages
+```
+
+The `Base Images` GitHub workflow is manual and publishes only layout images.
+Layout images download and verify Apache Spark distributions, so trigger that
+workflow deliberately for Spark distribution changes, base OS refreshes, or CVE
+fixes. Runtime base images are assembled from Gradle-managed jars and are part
+of the normal release workflow before platform images are published.
 
 List jars in a built platform image:
 
@@ -145,9 +160,65 @@ and a `spark-base-<line>-runtime` bundle in `gradle/libs.versions.toml`. The
 layout image should preserve the Apache Spark filesystem contract for
 Kubernetes and Spark Operator use, while the runtime image should assemble
 `/opt/spark/jars` through Gradle/Jib from catalog-managed dependencies.
-Do not wire platform image tasks or the normal release task to build base
-images; base images are slower-moving infrastructure and should be promoted
-independently before platform images consume them.
+
+## Spark Base Image Model
+
+Spark base images are intentionally split into two layers:
+
+- Layout image:
+  downloads and verifies the immutable Apache Spark binary distribution,
+  extracts the Spark filesystem layout, preserves scripts/configuration needed
+  by Kubernetes and Spark Operator, and removes distribution jars from
+  `/opt/spark/jars`.
+- Runtime image:
+  starts from a published layout image and adds only Gradle-resolved runtime
+  jars from `gradle/libs.versions.toml` and `platform-bom`.
+- Feature images:
+  start from the runtime image and install image features such as `python3`,
+  `r`, or `python3-r`.
+
+This keeps the heavy network/download layer out of the normal release path, but
+still lets a release pick up Spark, Hadoop, Scala, and related jar changes from
+the version catalog. The release task publishes runtime base images first, then
+publishes `ghcr.io/openprojectx/spark-platform` images on top of them.
+
+Manual layout image publish:
+
+```bash
+env GRADLE_USER_HOME=/data/.gradle ./gradlew :spark-base-image:dockerPushSparkBaseLayoutImages
+```
+
+Release-managed runtime image publish:
+
+```bash
+env GRADLE_USER_HOME=/data/.gradle ./gradlew :spark-base-image:dockerPushSparkBaseRuntimeImages
+```
+
+Full local rebuild, including layout and runtime images:
+
+```bash
+env GRADLE_USER_HOME=/data/.gradle ./gradlew :spark-base-image:dockerBuildSparkBaseImages
+```
+
+List jars in a runtime base image:
+
+```bash
+docker run --rm --entrypoint sh \
+  ghcr.io/openprojectx/spark:3.5.8-scala2.13-java17-python3-r-ubuntu \
+  -c 'find /opt/spark/jars -maxdepth 1 -type f -name "*.jar" -printf "%f\n" | sort'
+```
+
+Check that a layout image has no distribution jars:
+
+```bash
+docker run --rm --entrypoint sh \
+  ghcr.io/openprojectx/spark:3.5.8-scala2.13-java17-layout-ubuntu \
+  -c 'find /opt/spark/jars -maxdepth 1 -type f -name "*.jar" -printf "%f\n" | sort'
+```
+
+The second command should print no jar names. If it prints Spark distribution
+jars, the layout image is no longer clean and runtime ownership has leaked back
+to the Apache binary distribution.
 
 ## Pull Request Checklist
 
