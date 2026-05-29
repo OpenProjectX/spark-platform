@@ -58,8 +58,14 @@ Build a platform image:
 
 ```bash
 env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuildPlatformImages \
-  -PsparkPlatform.line=spark4
+  -PsparkPlatform.line=spark4 \
+  -PsparkPlatform.buildIndividualImages=false \
+  -PsparkPlatform.buildCombinedImages=true
 ```
+
+Use `sparkPlatform.buildIndividualImages=false` for curated profile tags. Leave
+it enabled only when you deliberately need one tag per variant for debugging or
+publishing a single optional runtime family.
 
 Build stripped Spark layout images:
 

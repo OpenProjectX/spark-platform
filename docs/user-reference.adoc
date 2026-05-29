@@ -355,10 +355,16 @@ env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuildPlatf
   -PsparkPlatform.line=spark4
 ----
 
-The aggregate task builds each selected variant individually, then builds one
-combined image for each Scala-compatible variant group. For Spark 3 and Spark 4
-defaults, that means individual `iceberg`, `hudi`, `paimon`, and `openlineage`
-images, plus one combined `iceberg-hudi-paimon-openlineage` image.
+The aggregate task can build individual variant images, combined profile
+images, or both:
+
+* `sparkPlatform.buildIndividualImages=true|false`
+* `sparkPlatform.buildCombinedImages=true|false`
+
+Direct aggregate builds default to both for local inspection. The release-all
+task uses `buildIndividualImages=false` and `buildCombinedImages=true`, so the
+published release surface is curated combined profiles instead of every
+individual variant tag.
 
 Build one explicit variant set:
 
@@ -369,6 +375,28 @@ env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuild \
   -PsparkPlatform.variants=iceberg,hudi,paimon,openlineage
 ----
 
+Build only one curated profile tag:
+
+[source,bash]
+----
+env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuildPlatformImages \
+  -PsparkPlatform.line=spark4 \
+  -PsparkPlatform.variants=iceberg,hadoop-aws,openlineage \
+  -PsparkPlatform.buildIndividualImages=false \
+  -PsparkPlatform.buildCombinedImages=true
+----
+
+Build only individual tags:
+
+[source,bash]
+----
+env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuildPlatformImages \
+  -PsparkPlatform.line=spark4 \
+  -PsparkPlatform.variants=iceberg,hudi \
+  -PsparkPlatform.buildIndividualImages=true \
+  -PsparkPlatform.buildCombinedImages=false
+----
+
 By default, the platform image uses:
 
 * base image: `ghcr.io/openprojectx/spark:<spark-version>-scala<scala-binary-version>-java17-python3-r-ubuntu`
@@ -376,10 +404,10 @@ By default, the platform image uses:
 * target tag: `<line>-<variant-or-variants>-<project.version>`
 * extra jars path: `/opt/spark/jars`
 
-Variant sets must use a single Scala binary version so they match one Apache
-Spark base image. The aggregate task derives compatibility from the Scala
-binary versions in the variant bundles, so incompatible variants are built
-individually or in separate compatible groups instead of being forced into one
+Combined variant sets must use a single Scala binary version so they match one
+Apache Spark base image. The aggregate task derives compatibility from the
+Scala binary versions in the variant bundles, so incompatible variants are
+built in separate compatible profile groups instead of being forced into one
 image. For example, a Scala 2.12-only variant will not be combined with Scala
 2.13 variants.
 

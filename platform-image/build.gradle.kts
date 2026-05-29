@@ -46,6 +46,12 @@ val variants = providers.gradleProperty("sparkPlatform.variants")
                 ?: listOf("iceberg", "hudi", "paimon", "openlineage")
         }
     )
+val buildIndividualImages = providers.gradleProperty("sparkPlatform.buildIndividualImages")
+    .map(String::toBoolean)
+    .orElse(true)
+val buildCombinedImages = providers.gradleProperty("sparkPlatform.buildCombinedImages")
+    .map(String::toBoolean)
+    .orElse(true)
 val libsCatalog = extensions.getByType<VersionCatalogsExtension>().named("libs")
 val scalaBinaryVersionPattern = Regex(""".*_(\d+\.\d+)$""")
 val platformJars = configurations.create("platformJars") {
@@ -208,19 +214,37 @@ data class PlatformImageBuildSpec(
     val variants: List<String>
 )
 
-fun buildSpecs(line: String, selectedVariants: List<String>): List<PlatformImageBuildSpec> {
-    val isolatedVariants = isolatedCombinedImageVariantsByLine[line.trim().lowercase()].orEmpty()
-    val individualSpecs = selectedVariants.map { variant ->
-        PlatformImageBuildSpec(variant, listOf(variant))
+fun buildSpecs(
+    line: String,
+    selectedVariants: List<String>,
+    includeIndividualImages: Boolean,
+    includeCombinedImages: Boolean
+): List<PlatformImageBuildSpec> {
+    require(includeIndividualImages || includeCombinedImages) {
+        "At least one platform image build mode must be enabled. " +
+            "Set sparkPlatform.buildIndividualImages=true or sparkPlatform.buildCombinedImages=true."
     }
-    val combinedSpecs = selectedVariants
-        .filterNot { variant -> variant in isolatedVariants }
-        .groupBy { variant -> scalaBinaryVersion(line, variant) }
-        .values
-        .filter { compatibleVariants -> compatibleVariants.size > 1 }
-        .map { compatibleVariants ->
-            PlatformImageBuildSpec(compatibleVariants.joinToString("-"), compatibleVariants)
+
+    val isolatedVariants = isolatedCombinedImageVariantsByLine[line.trim().lowercase()].orEmpty()
+    val individualSpecs = if (includeIndividualImages) {
+        selectedVariants.map { variant ->
+            PlatformImageBuildSpec(variant, listOf(variant))
         }
+    } else {
+        emptyList()
+    }
+    val combinedSpecs = if (includeCombinedImages) {
+        selectedVariants
+            .filterNot { variant -> variant in isolatedVariants }
+            .groupBy { variant -> scalaBinaryVersion(line, variant) }
+            .values
+            .filter { compatibleVariants -> !includeIndividualImages || compatibleVariants.size > 1 }
+            .map { compatibleVariants ->
+                PlatformImageBuildSpec(compatibleVariants.joinToString("-"), compatibleVariants)
+            }
+    } else {
+        emptyList()
+    }
 
     return individualSpecs + combinedSpecs
 }
@@ -281,7 +305,12 @@ jib {
     }
 }
 
-val platformImageBuildSpecs = buildSpecs(platformLine.get(), variants.get())
+val platformImageBuildSpecs = buildSpecs(
+    platformLine.get(),
+    variants.get(),
+    buildIndividualImages.get(),
+    buildCombinedImages.get()
+)
 
 fun registerPlatformImageTasks(
     jibTaskName: String,
@@ -303,7 +332,9 @@ fun registerPlatformImageTasks(
                 "-PsparkPlatform.imageRepository=${imageRepository.get()}",
                 "-PsparkPlatform.baseImageRepository=${baseImageRepositoryFor(platformLine.get())}",
                 "-PsparkPlatform.imageTag=${platformImageTag(platformLine.get(), spec.variants)}",
-                "-PsparkPlatform.baseImageSuffix=${baseImageSuffixFor(platformLine.get())}"
+                "-PsparkPlatform.baseImageSuffix=${baseImageSuffixFor(platformLine.get())}",
+                "-PsparkPlatform.buildIndividualImages=${buildIndividualImages.get()}",
+                "-PsparkPlatform.buildCombinedImages=${buildCombinedImages.get()}"
             )
         }
         taskName
@@ -317,7 +348,7 @@ fun registerPlatformImageTasks(
 
     tasks.register(aggregateTaskName) {
         group = "jib"
-        description = "$action individual Spark Platform variant images and compatible combined images."
+        description = "$action selected Spark Platform images."
         dependsOn(taskNames)
     }
 
@@ -351,7 +382,9 @@ val jibPublishAllPlatformImageTaskNames = defaultImageVariantsByLine.keys.map { 
             "-PsparkPlatform.variants=${defaultImageVariantsByLine.getValue(normalizedLine).joinToString(",")}",
             "-PsparkPlatform.imageRepository=${imageRepository.get()}",
             "-PsparkPlatform.baseImageRepository=${baseImageRepositoryFor(normalizedLine)}",
-            "-PsparkPlatform.baseImageSuffix=${baseImageSuffixFor(normalizedLine)}"
+            "-PsparkPlatform.baseImageSuffix=${baseImageSuffixFor(normalizedLine)}",
+            "-PsparkPlatform.buildIndividualImages=false",
+            "-PsparkPlatform.buildCombinedImages=true"
         )
     }
     taskName
