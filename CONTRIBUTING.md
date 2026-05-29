@@ -120,6 +120,73 @@ docker run --rm --entrypoint sh \
 6. Add or update plugin/platform-image tests when behavior changes.
 7. Update `docs/user-reference.adoc`.
 
+### Extension Pattern
+
+The default extension point is the version catalog. Do not add `if spark3`,
+`if spark4`, or connector-specific branches in plugin source when a dependency
+can be represented as a catalog alias and bundle.
+
+Choose the smallest ownership level that matches the library:
+
+- Line-managed baseline:
+  use `spark-platform-<line>-managed` and `spark-base-<line>-runtime` only for
+  libraries that every application on that Spark line must receive, such as
+  Spark core modules and the Hadoop client baseline.
+- Optional variant:
+  use `spark-platform-<line>-variant-<variant>` for optional runtime families
+  such as `iceberg`, `hudi`, `paimon`, `openlineage`, `hadoop-aws`, or
+  `hadoop-gcs`. This gives applications strict version constraints and gives
+  `platform-image` the jars to layer when that variant image is built.
+- Isolated variant BOM:
+  use `spark-platform-<line>-variant-<variant>-managed` only when that variant
+  cannot safely combine with the normal line-managed bundle, for example a
+  Scala-binary mismatch or a dependency family that must replace the line
+  baseline as a unit.
+
+For a storage connector such as Hadoop AWS or GCS, the normal pattern is:
+
+```toml
+[versions]
+hadoopAwsSpark3 = "3.4.2"
+hadoopAwsSpark4 = "3.4.2"
+awsSdkBundle = "1.12.x"
+gcsConnector = "hadoop3-2.x.x"
+
+[libraries]
+spark3HadoopAws = { module = "org.apache.hadoop:hadoop-aws", version.ref = "hadoopAwsSpark3" }
+spark4HadoopAws = { module = "org.apache.hadoop:hadoop-aws", version.ref = "hadoopAwsSpark4" }
+awsJavaSdkBundle = { module = "com.amazonaws:aws-java-sdk-bundle", version.ref = "awsSdkBundle" }
+spark3GcsConnector = { module = "com.google.cloud.bigdataoss:gcs-connector", version.ref = "gcsConnector" }
+spark4GcsConnector = { module = "com.google.cloud.bigdataoss:gcs-connector", version.ref = "gcsConnector" }
+
+[bundles]
+spark-platform-spark3-variant-hadoop-aws = ["spark3HadoopAws", "awsJavaSdkBundle"]
+spark-platform-spark4-variant-hadoop-aws = ["spark4HadoopAws", "awsJavaSdkBundle"]
+spark-platform-spark3-variant-hadoop-gcs = ["spark3GcsConnector"]
+spark-platform-spark4-variant-hadoop-gcs = ["spark4GcsConnector"]
+```
+
+With those bundle names in place, no plugin code is needed. Users select the
+variant:
+
+```kotlin
+sparkPlatform {
+    line.set("spark4")
+    variants.set(listOf("hadoop-aws"))
+}
+
+dependencies {
+    implementation(sparkPlatform("org.apache.hadoop:hadoop-aws"))
+    implementation(sparkPlatform("com.amazonaws:aws-java-sdk-bundle"))
+}
+```
+
+The application controls which connector classes it actually uses; Spark
+Platform owns the versions, constraints, and platform image contents for the
+selected variant. If the connector also needs JVM module options, capability
+resolution, exclusions, or image-entrypoint behavior, add that logic in `core`
+as a data-driven rule and cover it with focused tests.
+
 ## Upgrading a Spark Line
 
 1. Check the Apache release archive for the target Spark version and confirm the

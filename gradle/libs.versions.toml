@@ -14,6 +14,7 @@ iceberg = "1.10.0"
 hudi = "1.2.0"
 paimon = "1.4.1"
 openlineage = "1.39.0"
+gcsConnector = "4.0.4"
 
 [libraries]
 kotlinGradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
@@ -67,6 +68,12 @@ spark4Iceberg = { module = "org.apache.iceberg:iceberg-spark-runtime-4.0_2.13", 
 spark4Hudi = { module = "org.apache.hudi:hudi-spark4.0-bundle_2.13", version.ref = "hudi" }
 spark4Paimon = { module = "org.apache.paimon:paimon-spark-4.0_2.13", version.ref = "paimon" }
 spark4Openlineage = { module = "io.openlineage:openlineage-spark_2.13", version.ref = "openlineage" }
+
+spark3HadoopAws = { module = "org.apache.hadoop:hadoop-aws", version.ref = "hadoopSpark3" }
+spark4HadoopAws = { module = "org.apache.hadoop:hadoop-aws", version.ref = "hadoopSpark4" }
+#awsJavaSdkBundle = { module = "com.amazonaws:aws-java-sdk-bundle", version.ref = "awsSdkBundle" }
+spark3GcsConnector = { module = "com.google.cloud.bigdataoss:gcs-connector", version.ref = "gcsConnector" }
+spark4GcsConnector = { module = "com.google.cloud.bigdataoss:gcs-connector", version.ref = "gcsConnector" }
 
 [bundles]
 kotlinxEcosystem = ["kotlinxDatetime", "kotlinxSerialization", "kotlinxCoroutines"]
@@ -142,6 +149,11 @@ spark-base-spark4-runtime = [
     "spark4HadoopClientApi",
     "spark4HadoopClientRuntime",
 ]
+
+spark-platform-spark3-variant-hadoop-aws = ["spark3HadoopAws"]
+spark-platform-spark4-variant-hadoop-aws = ["spark4HadoopAws"]
+spark-platform-spark3-variant-hadoop-gcs = ["spark3GcsConnector"]
+spark-platform-spark4-variant-hadoop-gcs = ["spark4GcsConnector"]
 
 [plugins]
 kotlinPluginSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
