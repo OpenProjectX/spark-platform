@@ -8,8 +8,8 @@ plugins {
     alias(libs.plugins.jib)
 }
 
-val platformLine = providers.gradleProperty("sparkPlatform.line").orElse("spark3")
-val imageRepository = providers.gradleProperty("sparkPlatform.imageRepository")
+val platformLine: Provider<String> = providers.gradleProperty("sparkPlatform.line").orElse("spark3")
+val imageRepository: Provider<String> = providers.gradleProperty("sparkPlatform.imageRepository")
     .orElse("ghcr.io/openprojectx/spark-platform")
 data class BaseImageDefaults(
     val repository: String,

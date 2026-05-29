@@ -9,11 +9,11 @@ javaPlatform {
     allowDependencies()
 }
 
-val platformLine = providers.gradleProperty("sparkPlatform.line").orElse("spark3")
-val platformVariants = providers.gradleProperty("sparkPlatform.variants")
+val platformLine: Provider<String> = providers.gradleProperty("sparkPlatform.line").orElse("spark3")
+val platformVariants: Provider<List<String>> = providers.gradleProperty("sparkPlatform.variants")
     .map { parseVariants(it) }
     .orElse(emptyList())
-val libsCatalog = extensions.getByType<VersionCatalogsExtension>().named("libs")
+val libsCatalog: VersionCatalog = extensions.getByType<VersionCatalogsExtension>().named("libs")
 
 fun normalizeLine(line: String): String = line.trim().lowercase().ifEmpty { "spark3" }
 
@@ -48,7 +48,7 @@ fun MinimalExternalModuleDependency.requiredVersion(): String {
     return version
 }
 
-fun bundle(name: String): org.gradle.api.artifacts.ExternalModuleDependencyBundle = libsCatalog.findBundle(name)
+fun bundle(name: String): ExternalModuleDependencyBundle = libsCatalog.findBundle(name)
     .orElseThrow {
         IllegalArgumentException(
             "Version catalog bundle '$name' is missing. Add it to gradle/libs.versions.toml."
@@ -56,14 +56,14 @@ fun bundle(name: String): org.gradle.api.artifacts.ExternalModuleDependencyBundl
     }
     .get()
 
-fun bundleOrNull(name: String): org.gradle.api.artifacts.ExternalModuleDependencyBundle? {
+fun bundleOrNull(name: String): ExternalModuleDependencyBundle? {
     return libsCatalog.findBundle(name).orElse(null)?.get()
 }
 
 fun managedBundles(
     line: String,
     requestedVariants: Iterable<String>
-): List<org.gradle.api.artifacts.ExternalModuleDependencyBundle> = buildList {
+): List<ExternalModuleDependencyBundle> = buildList {
     val variants = normalizeVariants(requestedVariants)
 
     if (variants.size == 1) {
