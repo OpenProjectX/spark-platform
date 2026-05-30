@@ -151,8 +151,10 @@ spark-base-spark4-runtime = [
 ]
 
 spark-platform-spark3-variant-hadoop-aws = ["spark3HadoopAws"]
+spark-platform-spark3-scala213-variant-hadoop-aws = ["spark3HadoopAws"]
 spark-platform-spark4-variant-hadoop-aws = ["spark4HadoopAws"]
 spark-platform-spark3-variant-hadoop-gcs = ["spark3GcsConnector"]
+spark-platform-spark3-scala213-variant-hadoop-gcs = ["spark3GcsConnector"]
 spark-platform-spark4-variant-hadoop-gcs = ["spark4GcsConnector"]
 
 [plugins]

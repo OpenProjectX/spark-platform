@@ -8,10 +8,12 @@ object SparkPlatformCatalog {
 
     fun normalizeVariants(variants: Iterable<String>): List<String> {
         return variants
-            .map { it.trim().lowercase() }
+            .map { normalizeVariant(it) }
             .filter { it.isNotEmpty() }
             .distinct()
     }
+
+    fun normalizeVariant(variant: String): String = variant.trim().lowercase().replace('_', '-')
 
     fun parseVariants(value: String): List<String> {
         return normalizeVariants(value.split(","))
@@ -20,7 +22,7 @@ object SparkPlatformCatalog {
     fun managedBundle(line: String): String = "spark-platform-${normalizeLine(line)}-managed"
 
     fun variantBundle(line: String, variant: String): String {
-        return "spark-platform-${normalizeLine(line)}-variant-${variant.trim().lowercase()}"
+        return "spark-platform-${normalizeLine(line)}-variant-${normalizeVariant(variant)}"
     }
 
     fun variantManagedBundle(line: String, variant: String): String {

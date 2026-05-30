@@ -33,13 +33,13 @@ val baseImageDefaultsByLine = mapOf(
 val requestedBaseImageRepository = providers.gradleProperty("sparkPlatform.baseImageRepository")
 val requestedBaseImageSuffix = providers.gradleProperty("sparkPlatform.baseImageSuffix")
 val defaultImageVariantsByLine = mapOf(
-    "spark3" to listOf("iceberg", "hudi", "paimon", "openlineage"),
-    "spark3-scala213" to listOf("iceberg", "openlineage"),
-    "spark4" to listOf("iceberg", "hudi", "paimon", "openlineage")
+    "spark3" to listOf("iceberg", "hudi", "paimon", "openlineage", "hadoop-aws"),
+    "spark3-scala213" to listOf("iceberg", "openlineage", "hadoop-aws"),
+    "spark4" to listOf("iceberg", "hudi", "paimon", "openlineage", "hadoop-aws")
 )
 val isolatedCombinedImageVariantsByLine = emptyMap<String, Set<String>>()
 val variants = providers.gradleProperty("sparkPlatform.variants")
-    .map { it.split(",").map(String::trim).filter(String::isNotEmpty).map(String::lowercase).distinct() }
+    .map { it.split(",").map(::normalizeVariant).filter(String::isNotEmpty).distinct() }
     .orElse(
         providers.provider {
             defaultImageVariantsByLine[platformLine.get().trim().lowercase()]
@@ -113,11 +113,15 @@ configurations.configureEach {
 }
 
 fun variantBundleName(line: String, variant: String): String {
-    return "spark-platform-${line.trim().lowercase()}-variant-${variant.trim().lowercase()}"
+    return "spark-platform-${line.trim().lowercase()}-variant-${normalizeVariant(variant)}"
 }
 
 fun managedBundleName(line: String): String {
     return "spark-platform-${line.trim().lowercase()}-managed"
+}
+
+fun normalizeVariant(variant: String): String {
+    return variant.trim().lowercase().replace('_', '-')
 }
 
 fun bundle(name: String): ExternalModuleDependencyBundle {
@@ -170,6 +174,7 @@ fun scalaBinaryVersion(line: String, variant: String): String {
     val versions = scalaBinaryVersions(listOf(variantBundleName(line, variant)))
     return when (versions.size) {
         1 -> versions.single()
+        0 -> scalaBinaryVersions(listOf(managedBundleName(line))).single()
         else -> error("Variant '$variant' for line '$line' must resolve to exactly one Scala binary version, found $versions.")
     }
 }
@@ -184,9 +189,10 @@ fun platformImageTag(line: String, selectedVariants: Iterable<String>): String {
 fun sparkBaseImage(line: String, selectedVariants: Iterable<String>, failOnMultipleScalaVersions: Boolean = true): String {
     val normalizedLine = line.trim().lowercase()
     val variantBundleNames = selectedVariants.map { variantBundleName(normalizedLine, it) }
+    val lineScalaVersion = scalaBinaryVersions(listOf(managedBundleName(normalizedLine))).single()
     val variantScalaVersions = scalaBinaryVersions(variantBundleNames)
     val scalaVersion = when (variantScalaVersions.size) {
-        0 -> scalaBinaryVersions(listOf(managedBundleName(normalizedLine))).single()
+        0 -> lineScalaVersion
         1 -> variantScalaVersions.single()
         else -> if (failOnMultipleScalaVersions) {
             error(

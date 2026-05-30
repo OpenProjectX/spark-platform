@@ -9,6 +9,10 @@ class SparkPlatformCatalogTest {
         assertEquals("spark-platform-spark5-managed", SparkPlatformCatalog.managedBundle(" Spark5 "))
         assertEquals("spark-platform-spark5-variant-iceberg", SparkPlatformCatalog.variantBundle("spark5", "Iceberg"))
         assertEquals(
+            "spark-platform-spark5-variant-hadoop-aws",
+            SparkPlatformCatalog.variantBundle("spark5", "hadoop_aws")
+        )
+        assertEquals(
             "spark-platform-spark5-variant-paimon-managed",
             SparkPlatformCatalog.variantManagedBundle("spark5", "Paimon")
         )
@@ -16,7 +20,10 @@ class SparkPlatformCatalogTest {
 
     @Test
     fun `parses variant csv values`() {
-        assertEquals(listOf("iceberg", "hudi"), SparkPlatformCatalog.parseVariants("iceberg, hudi,iceberg"))
+        assertEquals(
+            listOf("iceberg", "hudi", "hadoop-aws"),
+            SparkPlatformCatalog.parseVariants("iceberg, hudi,iceberg,hadoop_aws")
+        )
     }
 
     @Test

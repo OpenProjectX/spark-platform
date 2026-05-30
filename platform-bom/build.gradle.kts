@@ -19,17 +19,19 @@ fun normalizeLine(line: String): String = line.trim().lowercase().ifEmpty { "spa
 
 fun normalizeVariants(variants: Iterable<String>): List<String> {
     return variants
-        .map { it.trim().lowercase() }
+        .map { normalizeVariant(it) }
         .filter { it.isNotEmpty() }
         .distinct()
 }
+
+fun normalizeVariant(variant: String): String = variant.trim().lowercase().replace('_', '-')
 
 fun parseVariants(value: String): List<String> = normalizeVariants(value.split(","))
 
 fun managedBundleName(line: String): String = "spark-platform-${normalizeLine(line)}-managed"
 
 fun variantBundleName(line: String, variant: String): String {
-    return "spark-platform-${normalizeLine(line)}-variant-${variant.trim().lowercase()}"
+    return "spark-platform-${normalizeLine(line)}-variant-${normalizeVariant(variant)}"
 }
 
 fun variantManagedBundleName(line: String, variant: String): String {
