@@ -1,0 +1,39 @@
+# Spark Platform image build configuration.
+#
+# Add new Spark lines, default image profiles, transitive exclusions, isolated
+# variants, or capability rules here instead of changing platform-image
+# build logic.
+
+[baseImages.spark3]
+repository = "ghcr.io/openprojectx/spark"
+suffix = "-java17-python3-r-ubuntu"
+
+[baseImages.spark3-scala213]
+repository = "ghcr.io/openprojectx/spark"
+suffix = "-java17-python3-r-ubuntu"
+
+[baseImages.spark4]
+repository = "ghcr.io/openprojectx/spark"
+suffix = "-java17-python3-r-ubuntu"
+
+[defaultVariants]
+spark3 = ["iceberg", "hudi", "paimon", "openlineage", "hadoopAws"]
+spark3-scala213 = ["iceberg", "openlineage", "hadoopAws"]
+spark4 = ["iceberg", "hudi", "paimon", "openlineage", "hadoopAws"]
+
+[resolution]
+baseProvidedTransitiveGroups = [
+    "com.google.code.findbugs",
+    "org.apache.hadoop",
+    "org.apache.spark",
+    "org.lz4",
+    "org.scala-lang",
+    "org.scala-lang.modules",
+    "org.slf4j",
+    "org.xerial.snappy",
+]
+
+[[capabilityResolution]]
+capability = "org.lz4:lz4-java"
+preferredProvider = "at.yawk.lz4:lz4-java"
+reason = "Paimon's Spark bundle expects at.yawk.lz4:lz4-java when both LZ4 providers are present."

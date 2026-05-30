@@ -1,10 +1,10 @@
+import buildsrc.ModuleCoordinate
+import buildsrc.loadPlatformImageConfig
 import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.api.artifacts.ExternalModuleDependencyBundle
 import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import org.gradle.api.tasks.Exec
-import java.io.File
-import java.util.Properties
 
 plugins {
     java
@@ -15,33 +15,20 @@ val platformLine: Provider<String> = providers.gradleProperty("sparkPlatform.lin
 val variantCamelBoundary = Regex("(?<=[a-z0-9])(?=[A-Z])")
 val imageRepository: Provider<String> = providers.gradleProperty("sparkPlatform.imageRepository")
     .orElse("ghcr.io/openprojectx/spark-platform")
-data class BaseImageDefaults(
-    val repository: String,
-    val suffix: String
-)
 
-val baseImageDefaultsByLine = mapOf(
-    "spark3" to BaseImageDefaults(
-        repository = "ghcr.io/openprojectx/spark",
-        suffix = "-java17-python3-r-ubuntu"
-    ),
-    "spark3-scala213" to BaseImageDefaults(
-        repository = "ghcr.io/openprojectx/spark",
-        suffix = "-java17-python3-r-ubuntu"
-    ),
-    "spark4" to BaseImageDefaults(
-        repository = "ghcr.io/openprojectx/spark",
-        suffix = "-java17-python3-r-ubuntu"
-    )
-)
 val requestedBaseImageRepository = providers.gradleProperty("sparkPlatform.baseImageRepository")
 val requestedBaseImageSuffix = providers.gradleProperty("sparkPlatform.baseImageSuffix")
-val imageVariantsConfigPath = providers.gradleProperty("sparkPlatform.imageVariantsConfig")
-    .orElse("gradle/spark-platform-image-variants.properties")
-val defaultImageVariantsByLine = loadImageVariants(
-    rootProject.layout.projectDirectory.file(imageVariantsConfigPath.get()).asFile
+val platformImageConfigPath = providers.gradleProperty("sparkPlatform.imageConfig")
+    .orElse("gradle/spark-platform-image.toml")
+val platformImageConfig = loadPlatformImageConfig(
+    rootProject.layout.projectDirectory.file(platformImageConfigPath.get()).asFile,
+    ::normalizeVariant
 )
-val isolatedCombinedImageVariantsByLine = emptyMap<String, Set<String>>()
+val baseImageDefaultsByLine = platformImageConfig.baseImageDefaultsByLine
+val defaultImageVariantsByLine = platformImageConfig.defaultImageVariantsByLine
+val isolatedCombinedImageVariantsByLine = platformImageConfig.isolatedCombinedImageVariantsByLine
+val baseProvidedTransitiveGroups = platformImageConfig.baseProvidedTransitiveGroups
+val capabilityResolutionRules = platformImageConfig.capabilityResolutionRules
 val variants = providers.gradleProperty("sparkPlatform.variants")
     .map { it.split(",").map(::normalizeVariant).filter(String::isNotEmpty).distinct() }
     .orElse(
@@ -50,7 +37,7 @@ val variants = providers.gradleProperty("sparkPlatform.variants")
             defaultImageVariantsByLine[normalizedLine]
                 ?: error(
                     "No default platform image variants configured for '$normalizedLine'. " +
-                        "Add it to ${imageVariantsConfigPath.get()} or pass -PsparkPlatform.variants=..."
+                        "Add it to ${platformImageConfigPath.get()} or pass -PsparkPlatform.variants=..."
                 )
         }
     )
@@ -67,37 +54,6 @@ val platformJars = configurations.create("platformJars") {
     isCanBeResolved = true
     description = "Variant jars layered on top of the selected Apache Spark image."
 }
-
-data class ModuleCoordinate(
-    val group: String,
-    val name: String
-) {
-    override fun toString(): String = "$group:$name"
-}
-
-data class CapabilityResolutionRule(
-    val capability: ModuleCoordinate,
-    val preferredProvider: ModuleCoordinate,
-    val reason: String
-)
-
-val capabilityResolutionRules = listOf(
-    CapabilityResolutionRule(
-        capability = ModuleCoordinate("org.lz4", "lz4-java"),
-        preferredProvider = ModuleCoordinate("at.yawk.lz4", "lz4-java"),
-        reason = "Paimon's Spark bundle expects at.yawk.lz4:lz4-java when both LZ4 providers are present."
-    )
-)
-val baseProvidedTransitiveGroups = setOf(
-    "com.google.code.findbugs",
-    "org.apache.hadoop",
-    "org.apache.spark",
-    "org.lz4",
-    "org.scala-lang",
-    "org.scala-lang.modules",
-    "org.slf4j",
-    "org.xerial.snappy"
-)
 val jibImageTaskNames = setOf("jib", "jibDockerBuild", "jibBuildTar")
 
 fun ModuleComponentIdentifier.matches(coordinate: ModuleCoordinate): Boolean {
@@ -144,28 +100,6 @@ fun normalizeVariant(variant: String): String {
     }
 }
 
-fun loadImageVariants(file: File): Map<String, List<String>> {
-    require(file.isFile) {
-        "Platform image variant config file '${file.path}' does not exist."
-    }
-
-    val properties = Properties()
-    file.inputStream().use(properties::load)
-    return properties.stringPropertyNames()
-        .associate { line ->
-            line.trim().lowercase() to properties.getProperty(line)
-                .split(",")
-                .map(::normalizeVariant)
-                .filter(String::isNotEmpty)
-                .distinct()
-        }
-        .also { variantsByLine ->
-            require(variantsByLine.isNotEmpty()) {
-                "Platform image variant config file '${file.path}' must define at least one Spark line."
-            }
-        }
-}
-
 fun bundle(name: String): ExternalModuleDependencyBundle {
     return libsCatalog.findBundle(name)
         .orElseThrow {
@@ -190,7 +124,12 @@ fun sparkVersion(line: String): String {
 fun baseImageRepositoryFor(line: String): String {
     return requestedBaseImageRepository.orElse(
         providers.provider {
-            baseImageDefaultsByLine[line.trim().lowercase()]?.repository ?: "spark"
+            baseImageDefaultsByLine[line.trim().lowercase()]?.repository
+                ?: error(
+                    "No Spark base image repository configured for '${line.trim().lowercase()}'. " +
+                        "Add baseImage.${line.trim().lowercase()}.repository to ${platformImageConfigPath.get()} " +
+                        "or pass -PsparkPlatform.baseImageRepository=..."
+                )
         }
     ).get()
 }
@@ -198,7 +137,12 @@ fun baseImageRepositoryFor(line: String): String {
 fun baseImageSuffixFor(line: String): String {
     return requestedBaseImageSuffix.orElse(
         providers.provider {
-            baseImageDefaultsByLine[line.trim().lowercase()]?.suffix ?: "-java17-python3-r-ubuntu"
+            baseImageDefaultsByLine[line.trim().lowercase()]?.suffix
+                ?: error(
+                    "No Spark base image suffix configured for '${line.trim().lowercase()}'. " +
+                        "Add baseImage.${line.trim().lowercase()}.suffix to ${platformImageConfigPath.get()} " +
+                        "or pass -PsparkPlatform.baseImageSuffix=..."
+                )
         }
     ).get()
 }
@@ -379,6 +323,7 @@ fun registerPlatformImageTasks(
                 ":platform-image:$jibTaskName",
                 "--no-configuration-cache",
                 "-PsparkPlatform.line=${platformLine.get()}",
+                "-PsparkPlatform.imageConfig=${platformImageConfigPath.get()}",
                 "-PsparkPlatform.variants=${spec.variants.joinToString(",")}",
                 "-PsparkPlatform.imageRepository=${imageRepository.get()}",
                 "-PsparkPlatform.baseImageRepository=${baseImageRepositoryFor(platformLine.get())}",
@@ -430,6 +375,7 @@ val jibPublishAllPlatformImageTaskNames = defaultImageVariantsByLine.keys.map { 
             ":platform-image:jibPublishPlatformImages",
             "--no-configuration-cache",
             "-PsparkPlatform.line=$normalizedLine",
+            "-PsparkPlatform.imageConfig=${platformImageConfigPath.get()}",
             "-PsparkPlatform.variants=${defaultImageVariantsByLine.getValue(normalizedLine).joinToString(",")}",
             "-PsparkPlatform.imageRepository=${imageRepository.get()}",
             "-PsparkPlatform.baseImageRepository=${baseImageRepositoryFor(normalizedLine)}",

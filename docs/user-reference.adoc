@@ -227,11 +227,11 @@ when set to `true`.
 
 | `sparkPlatform.variants`
 | Comma-separated variants, for example `iceberg,hudi`. When omitted, platform
-image defaults are read from `gradle/spark-platform-image-variants.properties`.
+image defaults are read from `gradle/spark-platform-image.toml`.
 
-| `sparkPlatform.imageVariantsConfig`
-| Optional path to the default platform image profile file. Defaults to
-`gradle/spark-platform-image-variants.properties`.
+| `sparkPlatform.imageConfig`
+| Optional path to the platform image config file. Defaults to
+`gradle/spark-platform-image.toml`.
 |===
 
 == Version Matrix
@@ -368,10 +368,18 @@ task uses `buildIndividualImages=false` and `buildCombinedImages=true`, so the
 published release surface is curated combined profiles instead of every
 individual variant tag.
 
-Default curated profiles are read from
-`gradle/spark-platform-image-variants.properties`. Use
-`-PsparkPlatform.imageVariantsConfig=<path>` to point platform image aggregate
-tasks at another profile file.
+Default curated profiles, base image defaults, isolated variants, transitive
+excludes, and capability-resolution rules are read from
+`gradle/spark-platform-image.toml`. Use
+`-PsparkPlatform.imageConfig=<path>` to point platform image aggregate tasks at
+another config file.
+
+When adding another library family, add the dependency coordinates and
+`spark-platform-<line>-variant-<variant>` bundles to
+`gradle/libs.versions.toml`, then add the variant to the desired curated
+profiles in `gradle/spark-platform-image.toml`. The build script should
+not need to change for another dependency, base image, curated profile,
+transitive exclude, or capability rule.
 
 Build one explicit variant set:
 

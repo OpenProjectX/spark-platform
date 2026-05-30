@@ -8,4 +8,6 @@ kotlin {
 
 dependencies {
     implementation(libs.kotlinGradlePlugin)
+    implementation(libs.tomlj)
+    compileOnly(libs.checkerQual)
 }

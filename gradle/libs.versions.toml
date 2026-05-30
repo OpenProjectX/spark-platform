@@ -5,6 +5,8 @@ kotlinxSerializationJSON = "1.9.0"
 kotlinxCoroutines = "1.10.2"
 junitJupiter = "6.0.2"
 jib = "3.5.2"
+tomlj = "1.1.1"
+checkerQual = "3.21.2"
 spark3 = "3.5.8"
 "spark3-scala213" = "3.5.8"
 spark4 = "4.0.1"
@@ -25,6 +27,8 @@ kotlinxCoroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", 
 junitJupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junitJupiter" }
 junitPlatformLauncher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junitJupiter" }
 jibGradlePlugin = { module = "com.google.cloud.tools:jib-gradle-plugin", version.ref = "jib" }
+tomlj = { module = "org.tomlj:tomlj", version.ref = "tomlj" }
+checkerQual = { module = "org.checkerframework:checker-qual", version.ref = "checkerQual" }
 
 spark3Core = { module = "org.apache.spark:spark-core_2.12", version.ref = "spark3" }
 spark3Sql = { module = "org.apache.spark:spark-sql_2.12", version.ref = "spark3" }

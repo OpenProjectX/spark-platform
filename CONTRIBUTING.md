@@ -198,11 +198,24 @@ Use lower camel case for multi-word variant ids because platform image tags use
 as `spark4-iceberg-hadoopAws-openlineage-<version>`. CLI aliases such as
 `hadoop-aws` and `hadoop_aws` are normalized to `hadoopAws`.
 
-Default platform image profiles are data, not build-script code. Add or remove
-curated line profiles in `gradle/spark-platform-image-variants.properties`.
-Each key is a Spark Platform line and each value is a comma-separated variant
-list. Use `-PsparkPlatform.imageVariantsConfig=<path>` when testing an
-alternate profile file.
+Platform image behavior is data, not build-script code. Add or remove curated
+line profiles, base-image defaults, isolated variants, transitive excludes, and
+capability-resolution rules in `gradle/spark-platform-image.toml`. Use
+`-PsparkPlatform.imageConfig=<path>` when testing an alternate image config
+file.
+
+For a new library family, the normal path should be config-only:
+
+1. Add versions, libraries, and `spark-platform-<line>-variant-<variant>`
+   bundles in `gradle/libs.versions.toml`.
+2. Add the variant to the curated line profiles in
+   `gradle/spark-platform-image.toml`.
+3. Add transitive-exclude groups or capability-resolution rules in the same
+   image config when resolution needs them.
+
+Change `platform-image/build.gradle.kts` only when the image build needs a new
+kind of behavior, not when it needs another dependency, variant, profile, base
+image, exclusion, or capability rule.
 
 ## Upgrading a Spark Line
 
