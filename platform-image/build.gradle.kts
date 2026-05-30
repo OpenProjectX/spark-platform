@@ -1,5 +1,6 @@
 import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.api.artifacts.ExternalModuleDependencyBundle
+import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import org.gradle.api.tasks.Exec
 
@@ -33,9 +34,9 @@ val baseImageDefaultsByLine = mapOf(
 val requestedBaseImageRepository = providers.gradleProperty("sparkPlatform.baseImageRepository")
 val requestedBaseImageSuffix = providers.gradleProperty("sparkPlatform.baseImageSuffix")
 val defaultImageVariantsByLine = mapOf(
-    "spark3" to listOf("iceberg", "hudi", "paimon", "openlineage", "hadoop-aws"),
-    "spark3-scala213" to listOf("iceberg", "openlineage", "hadoop-aws"),
-    "spark4" to listOf("iceberg", "hudi", "paimon", "openlineage", "hadoop-aws")
+    "spark3" to listOf("iceberg", "hudi", "paimon", "openlineage", "hadoopAws"),
+    "spark3-scala213" to listOf("iceberg", "openlineage", "hadoopAws"),
+    "spark4" to listOf("iceberg", "hudi", "paimon", "openlineage", "hadoopAws")
 )
 val isolatedCombinedImageVariantsByLine = emptyMap<String, Set<String>>()
 val variants = providers.gradleProperty("sparkPlatform.variants")
@@ -53,6 +54,7 @@ val buildCombinedImages = providers.gradleProperty("sparkPlatform.buildCombinedI
     .map(String::toBoolean)
     .orElse(true)
 val libsCatalog = extensions.getByType<VersionCatalogsExtension>().named("libs")
+val variantCamelBoundary = Regex("(?<=[a-z0-9])(?=[A-Z])")
 val scalaBinaryVersionPattern = Regex(""".*_(\d+\.\d+)$""")
 val platformJars = configurations.create("platformJars") {
     isCanBeConsumed = false
@@ -80,7 +82,7 @@ val capabilityResolutionRules = listOf(
         reason = "Paimon's Spark bundle expects at.yawk.lz4:lz4-java when both LZ4 providers are present."
     )
 )
-val baseProvidedGroups = setOf(
+val baseProvidedTransitiveGroups = setOf(
     "com.google.code.findbugs",
     "org.apache.hadoop",
     "org.apache.spark",
@@ -121,7 +123,19 @@ fun managedBundleName(line: String): String {
 }
 
 fun normalizeVariant(variant: String): String {
-    return variant.trim().lowercase().replace('_', '-')
+    // Variant ids are lower camel case because image tags use '-' to join
+    // variants. Accept dash/underscore/camel input and canonicalize it.
+    val words = variant.trim()
+        .split('-', '_')
+        .flatMap { word -> word.split(variantCamelBoundary) }
+        .map { it.lowercase() }
+        .filter { it.isNotEmpty() }
+
+    return if (words.size <= 1) {
+        words.firstOrNull().orEmpty()
+    } else {
+        words.first() + words.drop(1).joinToString("") { it.replaceFirstChar(Char::uppercaseChar) }
+    }
 }
 
 fun bundle(name: String): ExternalModuleDependencyBundle {
@@ -262,23 +276,26 @@ fun taskNameSuffix(value: String): String {
         .joinToString("") { part -> part.replaceFirstChar { it.uppercaseChar() } }
 }
 
+fun addVariantJar(dependency: Any) {
+    val addedDependency = dependencies.add(platformJars.name, dependency)
+    if (addedDependency is ModuleDependency) {
+        // These excludes apply only to transitive dependencies. The selected
+        // variant artifact itself must stay in the image, even when it belongs
+        // to a base-provided group such as org.apache.hadoop.
+        baseProvidedTransitiveGroups.forEach { group ->
+            addedDependency.exclude(mapOf("group" to group))
+        }
+    }
+}
+
 dependencies {
     add(platformJars.name, platform(project(":platform-bom")))
 
     variants.get().forEach { variant ->
         val bundleName = variantBundleName(platformLine.get(), variant)
         bundle(bundleName).forEach { dependency ->
-            add(platformJars.name, dependency)
+            addVariantJar(dependency)
         }
-    }
-}
-
-platformJars.exclude(group = "org.apache.spark")
-platformJars.exclude(group = "org.apache.hadoop")
-platformJars.exclude(group = "org.lz4")
-configurations.named(platformJars.name).configure {
-    baseProvidedGroups.forEach { group ->
-        exclude(group = group)
     }
 }
 

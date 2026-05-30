@@ -381,7 +381,7 @@ Build only one curated profile tag:
 ----
 env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuildPlatformImages \
   -PsparkPlatform.line=spark4 \
-  -PsparkPlatform.variants=iceberg,hadoop-aws,openlineage \
+  -PsparkPlatform.variants=iceberg,hadoopAws,openlineage \
   -PsparkPlatform.buildIndividualImages=false \
   -PsparkPlatform.buildCombinedImages=true
 ----

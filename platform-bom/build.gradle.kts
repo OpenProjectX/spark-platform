@@ -14,6 +14,7 @@ val platformVariants: Provider<List<String>> = providers.gradleProperty("sparkPl
     .map { parseVariants(it) }
     .orElse(emptyList())
 val libsCatalog: VersionCatalog = extensions.getByType<VersionCatalogsExtension>().named("libs")
+val variantCamelBoundary = Regex("(?<=[a-z0-9])(?=[A-Z])")
 
 fun normalizeLine(line: String): String = line.trim().lowercase().ifEmpty { "spark3" }
 
@@ -24,7 +25,21 @@ fun normalizeVariants(variants: Iterable<String>): List<String> {
         .distinct()
 }
 
-fun normalizeVariant(variant: String): String = variant.trim().lowercase().replace('_', '-')
+fun normalizeVariant(variant: String): String {
+    // Variant ids are lower camel case because image tags use '-' to join
+    // variants. Accept dash/underscore/camel input and canonicalize it.
+    val words = variant.trim()
+        .split('-', '_')
+        .flatMap { word -> word.split(variantCamelBoundary) }
+        .map { it.lowercase() }
+        .filter { it.isNotEmpty() }
+
+    return if (words.size <= 1) {
+        words.firstOrNull().orEmpty()
+    } else {
+        words.first() + words.drop(1).joinToString("") { it.replaceFirstChar(Char::uppercaseChar) }
+    }
+}
 
 fun parseVariants(value: String): List<String> = normalizeVariants(value.split(","))
 

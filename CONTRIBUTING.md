@@ -140,8 +140,8 @@ Choose the smallest ownership level that matches the library:
   Spark core modules and the Hadoop client baseline.
 - Optional variant:
   use `spark-platform-<line>-variant-<variant>` for optional runtime families
-  such as `iceberg`, `hudi`, `paimon`, `openlineage`, `hadoop-aws`, or
-  `hadoop-gcs`. This gives applications strict version constraints and gives
+  such as `iceberg`, `hudi`, `paimon`, `openlineage`, `hadoopAws`, or
+  `hadoopGcs`. This gives applications strict version constraints and gives
   `platform-image` the jars to layer when that variant image is built.
 - Isolated variant BOM:
   use `spark-platform-<line>-variant-<variant>-managed` only when that variant
@@ -166,10 +166,10 @@ spark3GcsConnector = { module = "com.google.cloud.bigdataoss:gcs-connector", ver
 spark4GcsConnector = { module = "com.google.cloud.bigdataoss:gcs-connector", version.ref = "gcsConnector" }
 
 [bundles]
-spark-platform-spark3-variant-hadoop-aws = ["spark3HadoopAws", "awsJavaSdkBundle"]
-spark-platform-spark4-variant-hadoop-aws = ["spark4HadoopAws", "awsJavaSdkBundle"]
-spark-platform-spark3-variant-hadoop-gcs = ["spark3GcsConnector"]
-spark-platform-spark4-variant-hadoop-gcs = ["spark4GcsConnector"]
+spark-platform-spark3-variant-hadoopAws = ["spark3HadoopAws", "awsJavaSdkBundle"]
+spark-platform-spark4-variant-hadoopAws = ["spark4HadoopAws", "awsJavaSdkBundle"]
+spark-platform-spark3-variant-hadoopGcs = ["spark3GcsConnector"]
+spark-platform-spark4-variant-hadoopGcs = ["spark4GcsConnector"]
 ```
 
 With those bundle names in place, no plugin code is needed. Users select the
@@ -178,7 +178,7 @@ variant:
 ```kotlin
 sparkPlatform {
     line.set("spark4")
-    variants.set(listOf("hadoop-aws"))
+    variants.set(listOf("hadoopAws"))
 }
 
 dependencies {
@@ -192,6 +192,11 @@ Platform owns the versions, constraints, and platform image contents for the
 selected variant. If the connector also needs JVM module options, capability
 resolution, exclusions, or image-entrypoint behavior, add that logic in `core`
 as a data-driven rule and cover it with focused tests.
+
+Use lower camel case for multi-word variant ids because platform image tags use
+`-` to separate variants. For example, use `hadoopAws`, so a combined tag reads
+as `spark4-iceberg-hadoopAws-openlineage-<version>`. CLI aliases such as
+`hadoop-aws` and `hadoop_aws` are normalized to `hadoopAws`.
 
 ## Upgrading a Spark Line
 
