@@ -17,9 +17,31 @@ repository = "ghcr.io/openprojectx/spark"
 suffix = "-java17-python3-r-ubuntu"
 
 [defaultVariants]
-spark3 = ["iceberg", "hudi", "paimon", "openlineage", "hadoopAws"]
-spark3-scala213 = ["iceberg", "openlineage", "hadoopAws"]
-spark4 = ["iceberg", "hudi", "paimon", "openlineage", "hadoopAws"]
+spark3 = ["iceberg", "hudi", "paimon", "openlineage"]
+spark3-scala213 = ["iceberg", "openlineage"]
+spark4 = ["iceberg", "hudi", "paimon", "openlineage"]
+
+[defaultAddons]
+spark3 = ["hadoopAws"]
+spark3-scala213 = ["hadoopAws"]
+spark4 = ["hadoopAws"]
+
+[defaultProfiles]
+spark3 = ["lakehouse"]
+spark3-scala213 = ["lakehouse"]
+spark4 = ["lakehouse"]
+
+[profiles.spark3.lakehouse]
+variants = ["iceberg", "hudi", "paimon", "openlineage"]
+addons = ["hadoopAws"]
+
+[profiles.spark3-scala213.lakehouse]
+variants = ["iceberg", "openlineage"]
+addons = ["hadoopAws"]
+
+[profiles.spark4.lakehouse]
+variants = ["iceberg", "hudi", "paimon", "openlineage"]
+addons = ["hadoopAws"]
 
 [resolution]
 baseProvidedTransitiveGroups = [

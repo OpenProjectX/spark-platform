@@ -120,7 +120,7 @@ docker run --rm --entrypoint sh \
 1. Add or update the version in `gradle/libs.versions.toml`.
 2. Add a library alias for each supported Spark line.
 3. Add the alias to the matching managed bundle.
-4. Add a variant bundle if the dependency is optional image content.
+4. Add a variant or addon bundle if the dependency is optional image content.
 5. Add a `spark-platform-<line>-variant-<variant>-managed` bundle only when the
    variant needs an isolated BOM.
 6. Add or update plugin/platform-image tests when behavior changes.
@@ -140,9 +140,16 @@ Choose the smallest ownership level that matches the library:
   Spark core modules and the Hadoop client baseline.
 - Optional variant:
   use `spark-platform-<line>-variant-<variant>` for optional runtime families
-  such as `iceberg`, `hudi`, `paimon`, `openlineage`, `hadoopAws`, or
-  `hadoopGcs`. This gives applications strict version constraints and gives
-  `platform-image` the jars to layer when that variant image is built.
+  such as `iceberg`, `hudi`, `paimon`, or `openlineage`. Variants are
+  compatibility-bearing: they may encode Spark or Scala versions, affect JVM
+  options, or determine the base image shape. Variants are part of explicit
+  image tags.
+- Optional addon:
+  use `spark-platform-<line>-addon-<addon>` for platform-owned dependency packs
+  that are not Spark/Scala compatibility dimensions, such as `hadoopAws`,
+  `hadoopGcs`, or JDBC drivers. Addons are included by curated profiles or by
+  `sparkPlatform.addons`, but curated release tags use the profile name instead
+  of listing every addon.
 - Isolated variant BOM:
   use `spark-platform-<line>-variant-<variant>-managed` only when that variant
   cannot safely combine with the normal line-managed bundle, for example a
@@ -155,48 +162,46 @@ For a storage connector such as Hadoop AWS or GCS, the normal pattern is:
 [versions]
 hadoopAwsSpark3 = "3.4.2"
 hadoopAwsSpark4 = "3.4.2"
-awsSdkBundle = "1.12.x"
 gcsConnector = "hadoop3-2.x.x"
 
 [libraries]
 spark3HadoopAws = { module = "org.apache.hadoop:hadoop-aws", version.ref = "hadoopAwsSpark3" }
 spark4HadoopAws = { module = "org.apache.hadoop:hadoop-aws", version.ref = "hadoopAwsSpark4" }
-awsJavaSdkBundle = { module = "com.amazonaws:aws-java-sdk-bundle", version.ref = "awsSdkBundle" }
 spark3GcsConnector = { module = "com.google.cloud.bigdataoss:gcs-connector", version.ref = "gcsConnector" }
 spark4GcsConnector = { module = "com.google.cloud.bigdataoss:gcs-connector", version.ref = "gcsConnector" }
 
 [bundles]
-spark-platform-spark3-variant-hadoopAws = ["spark3HadoopAws", "awsJavaSdkBundle"]
-spark-platform-spark4-variant-hadoopAws = ["spark4HadoopAws", "awsJavaSdkBundle"]
-spark-platform-spark3-variant-hadoopGcs = ["spark3GcsConnector"]
-spark-platform-spark4-variant-hadoopGcs = ["spark4GcsConnector"]
+spark-platform-spark3-addon-hadoopAws = ["spark3HadoopAws"]
+spark-platform-spark4-addon-hadoopAws = ["spark4HadoopAws"]
+spark-platform-spark3-addon-hadoopGcs = ["spark3GcsConnector"]
+spark-platform-spark4-addon-hadoopGcs = ["spark4GcsConnector"]
 ```
 
 With those bundle names in place, no plugin code is needed. Users select the
-variant:
+addon:
 
 ```kotlin
 sparkPlatform {
     line.set("spark4")
-    variants.set(listOf("hadoopAws"))
+    addons.set(listOf("hadoopAws"))
 }
 
 dependencies {
     implementation(sparkPlatform("org.apache.hadoop:hadoop-aws"))
-    implementation(sparkPlatform("com.amazonaws:aws-java-sdk-bundle"))
 }
 ```
 
 The application controls which connector classes it actually uses; Spark
 Platform owns the versions, constraints, and platform image contents for the
-selected variant. If the connector also needs JVM module options, capability
+selected addon. If the connector also needs JVM module options, capability
 resolution, exclusions, or image-entrypoint behavior, add that logic in `core`
 as a data-driven rule and cover it with focused tests.
 
-Use lower camel case for multi-word variant ids because platform image tags use
-`-` to separate variants. For example, use `hadoopAws`, so a combined tag reads
-as `spark4-iceberg-hadoopAws-openlineage-<version>`. CLI aliases such as
-`hadoop-aws` and `hadoop_aws` are normalized to `hadoopAws`.
+Use lower camel case for multi-word variant and addon ids in Gradle bundle names
+because image tags use `-` to separate tag parts. For example, use `hadoopAws`
+for the catalog id; the rendered image tag segment is lowercased as
+`hadoopaws`. CLI aliases such as `hadoop-aws` and `hadoop_aws` are normalized
+to `hadoopAws`.
 
 Platform image behavior is data, not build-script code. Add or remove curated
 line profiles, base-image defaults, isolated variants, transitive excludes, and
@@ -206,9 +211,10 @@ file.
 
 For a new library family, the normal path should be config-only:
 
-1. Add versions, libraries, and `spark-platform-<line>-variant-<variant>`
+1. Add versions, libraries, and `spark-platform-<line>-variant-<variant>` or
+   `spark-platform-<line>-addon-<addon>`
    bundles in `gradle/libs.versions.toml`.
-2. Add the variant to the curated line profiles in
+2. Add the variant or addon to the curated line profiles in
    `gradle/spark-platform-image.toml`.
 3. Add transitive-exclude groups or capability-resolution rules in the same
    image config when resolution needs them.

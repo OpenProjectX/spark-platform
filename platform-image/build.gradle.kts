@@ -26,21 +26,47 @@ val platformImageConfig = loadPlatformImageConfig(
 )
 val baseImageDefaultsByLine = platformImageConfig.baseImageDefaultsByLine
 val defaultImageVariantsByLine = platformImageConfig.defaultImageVariantsByLine
+val defaultImageAddonsByLine = platformImageConfig.defaultImageAddonsByLine
+val defaultImageProfilesByLine = platformImageConfig.defaultImageProfilesByLine
+val profilesByLine = platformImageConfig.profilesByLine
 val isolatedCombinedImageVariantsByLine = platformImageConfig.isolatedCombinedImageVariantsByLine
 val baseProvidedTransitiveGroups = platformImageConfig.baseProvidedTransitiveGroups
 val capabilityResolutionRules = platformImageConfig.capabilityResolutionRules
-val variants = providers.gradleProperty("sparkPlatform.variants")
-    .map { it.split(",").map(::normalizeVariant).filter(String::isNotEmpty).distinct() }
-    .orElse(
-        providers.provider {
-            val normalizedLine = platformLine.get().trim().lowercase()
-            defaultImageVariantsByLine[normalizedLine]
-                ?: error(
-                    "No default platform image variants configured for '$normalizedLine'. " +
-                        "Add it to ${platformImageConfigPath.get()} or pass -PsparkPlatform.variants=..."
-                )
-        }
-    )
+val requestedProfile = providers.gradleProperty("sparkPlatform.profile").orNull?.let(::normalizeVariant)
+val requestedVariants = providers.gradleProperty("sparkPlatform.variants").orNull
+    ?.split(",")
+    ?.map(::normalizeVariant)
+    ?.filter(String::isNotEmpty)
+    ?.distinct()
+val requestedAddons = providers.gradleProperty("sparkPlatform.addons").orNull
+    ?.split(",")
+    ?.map(::normalizeVariant)
+    ?.filter(String::isNotEmpty)
+    ?.distinct()
+val defaultProfile = defaultImageProfilesByLine[platformLine.get().trim().lowercase()]?.firstOrNull()
+val selectedProfile = requestedProfile ?: if (requestedVariants == null && requestedAddons == null) defaultProfile else null
+val profile = selectedProfile?.let { profileName ->
+    profilesByLine[platformLine.get().trim().lowercase()]?.get(profileName)
+        ?: error(
+            "No platform image profile '$profileName' configured for '${platformLine.get().trim().lowercase()}'. " +
+                "Add it to ${platformImageConfigPath.get()} or pass -PsparkPlatform.variants=..."
+        )
+}
+val variants = providers.provider {
+    requestedVariants
+        ?: profile?.variants
+        ?: defaultImageVariantsByLine[platformLine.get().trim().lowercase()]
+        ?: error(
+            "No default platform image variants configured for '${platformLine.get().trim().lowercase()}'. " +
+                "Add it to ${platformImageConfigPath.get()} or pass -PsparkPlatform.variants=..."
+        )
+}
+val addons = providers.provider {
+    requestedAddons
+        ?: profile?.addons
+        ?: defaultImageAddonsByLine[platformLine.get().trim().lowercase()]
+        ?: emptyList()
+}
 val buildIndividualImages = providers.gradleProperty("sparkPlatform.buildIndividualImages")
     .map(String::toBoolean)
     .orElse(true)
@@ -52,7 +78,7 @@ val scalaBinaryVersionPattern = Regex(""".*_(\d+\.\d+)$""")
 val platformJars = configurations.create("platformJars") {
     isCanBeConsumed = false
     isCanBeResolved = true
-    description = "Variant jars layered on top of the selected Apache Spark image."
+    description = "Platform variant and addon jars layered on top of the selected Apache Spark image."
 }
 val jibImageTaskNames = setOf("jib", "jibDockerBuild", "jibBuildTar")
 
@@ -78,6 +104,10 @@ configurations.configureEach {
 
 fun variantBundleName(line: String, variant: String): String {
     return "spark-platform-${line.trim().lowercase()}-variant-${normalizeVariant(variant)}"
+}
+
+fun addonBundleName(line: String, addon: String): String {
+    return "spark-platform-${line.trim().lowercase()}-addon-${normalizeVariant(addon)}"
 }
 
 fun managedBundleName(line: String): String {
@@ -165,11 +195,13 @@ fun scalaBinaryVersion(line: String, variant: String): String {
     }
 }
 
-fun platformImageTag(line: String, selectedVariants: Iterable<String>): String {
+fun platformImageTag(line: String, selectedVariants: Iterable<String>, selectedAddons: Iterable<String>, profileName: String?): String {
     val normalizedLine = line.trim().lowercase()
-    val variantPart = selectedVariants.joinToString("-") { it.trim().lowercase() }
-        .ifBlank { "base" }
-    return "$normalizedLine-$variantPart-$version"
+    val tagPart = profileName
+        ?: (selectedVariants.toList() + selectedAddons.toList())
+            .joinToString("-") { it.trim().lowercase() }
+            .ifBlank { "base" }
+    return "$normalizedLine-$tagPart-$version"
 }
 
 fun sparkBaseImage(line: String, selectedVariants: Iterable<String>, failOnMultipleScalaVersions: Boolean = true): String {
@@ -203,12 +235,16 @@ tasks.register("printSparkBaseImage") {
 
 data class PlatformImageBuildSpec(
     val name: String,
-    val variants: List<String>
+    val variants: List<String>,
+    val addons: List<String>,
+    val profile: String? = null
 )
 
 fun buildSpecs(
     line: String,
     selectedVariants: List<String>,
+    selectedAddons: List<String>,
+    profileName: String?,
     includeIndividualImages: Boolean,
     includeCombinedImages: Boolean
 ): List<PlatformImageBuildSpec> {
@@ -218,21 +254,40 @@ fun buildSpecs(
     }
 
     val isolatedVariants = isolatedCombinedImageVariantsByLine[line.trim().lowercase()].orEmpty()
+    val addonSuffix = selectedAddons.joinToString("-").takeIf(String::isNotBlank)
     val individualSpecs = if (includeIndividualImages) {
         selectedVariants.map { variant ->
-            PlatformImageBuildSpec(variant, listOf(variant))
+            PlatformImageBuildSpec(
+                listOfNotNull(variant, addonSuffix).joinToString("-"),
+                listOf(variant),
+                selectedAddons
+            )
         }
     } else {
         emptyList()
     }
-    val combinedSpecs = if (includeCombinedImages) {
+    val combinedSpecs = if (includeCombinedImages && selectedVariants.isEmpty()) {
+        listOf(
+            PlatformImageBuildSpec(
+                profileName ?: addonSuffix ?: "base",
+                emptyList(),
+                selectedAddons,
+                profileName
+            )
+        )
+    } else if (includeCombinedImages) {
         selectedVariants
             .filterNot { variant -> variant in isolatedVariants }
             .groupBy { variant -> scalaBinaryVersion(line, variant) }
             .values
             .filter { compatibleVariants -> !includeIndividualImages || compatibleVariants.size > 1 }
             .map { compatibleVariants ->
-                PlatformImageBuildSpec(compatibleVariants.joinToString("-"), compatibleVariants)
+                PlatformImageBuildSpec(
+                    profileName ?: listOfNotNull(compatibleVariants.joinToString("-"), addonSuffix).joinToString("-"),
+                    compatibleVariants,
+                    selectedAddons,
+                    profileName
+                )
             }
     } else {
         emptyList()
@@ -248,11 +303,11 @@ fun taskNameSuffix(value: String): String {
         .joinToString("") { part -> part.replaceFirstChar { it.uppercaseChar() } }
 }
 
-fun addVariantJar(dependency: Any) {
+fun addPlatformJar(dependency: Any) {
     val addedDependency = dependencies.add(platformJars.name, dependency)
     if (addedDependency is ModuleDependency) {
         // These excludes apply only to transitive dependencies. The selected
-        // variant artifact itself must stay in the image, even when it belongs
+        // platform artifact itself must stay in the image, even when it belongs
         // to a base-provided group such as org.apache.hadoop.
         baseProvidedTransitiveGroups.forEach { group ->
             addedDependency.exclude(mapOf("group" to group))
@@ -266,7 +321,14 @@ dependencies {
     variants.get().forEach { variant ->
         val bundleName = variantBundleName(platformLine.get(), variant)
         bundle(bundleName).forEach { dependency ->
-            addVariantJar(dependency)
+            addPlatformJar(dependency)
+        }
+    }
+
+    addons.get().forEach { addon ->
+        val bundleName = addonBundleName(platformLine.get(), addon)
+        bundle(bundleName).forEach { dependency ->
+            addPlatformJar(dependency)
         }
     }
 }
@@ -284,7 +346,7 @@ jib {
     }
     to {
         image = "${imageRepository.get()}:${providers.gradleProperty("sparkPlatform.imageTag").orElse(
-            providers.provider { platformImageTag(platformLine.get(), variants.get()) }
+            providers.provider { platformImageTag(platformLine.get(), variants.get(), addons.get(), selectedProfile) }
         ).get()}"
     }
     extraDirectories {
@@ -296,13 +358,15 @@ jib {
         }
     }
     container {
-        entrypoint = listOf("sh", "-c", "echo Spark Platform image: variant jars are in /opt/spark/jars")
+        entrypoint = listOf("sh", "-c", "echo Spark Platform image: platform jars are in /opt/spark/jars")
     }
 }
 
 val platformImageBuildSpecs = buildSpecs(
     platformLine.get(),
     variants.get(),
+    addons.get(),
+    selectedProfile,
     buildIndividualImages.get(),
     buildCombinedImages.get()
 )
@@ -325,9 +389,10 @@ fun registerPlatformImageTasks(
                 "-PsparkPlatform.line=${platformLine.get()}",
                 "-PsparkPlatform.imageConfig=${platformImageConfigPath.get()}",
                 "-PsparkPlatform.variants=${spec.variants.joinToString(",")}",
+                "-PsparkPlatform.addons=${spec.addons.joinToString(",")}",
                 "-PsparkPlatform.imageRepository=${imageRepository.get()}",
                 "-PsparkPlatform.baseImageRepository=${baseImageRepositoryFor(platformLine.get())}",
-                "-PsparkPlatform.imageTag=${platformImageTag(platformLine.get(), spec.variants)}",
+                "-PsparkPlatform.imageTag=${platformImageTag(platformLine.get(), spec.variants, spec.addons, spec.profile)}",
                 "-PsparkPlatform.baseImageSuffix=${baseImageSuffixFor(platformLine.get())}",
                 "-PsparkPlatform.buildIndividualImages=${buildIndividualImages.get()}",
                 "-PsparkPlatform.buildCombinedImages=${buildCombinedImages.get()}"
@@ -363,28 +428,30 @@ registerPlatformImageTasks(
     "Publishes"
 )
 
-val jibPublishAllPlatformImageTaskNames = defaultImageVariantsByLine.keys.map { line ->
+val jibPublishAllPlatformImageTaskNames = defaultImageProfilesByLine.flatMap { (line, profiles) ->
     val normalizedLine = line.trim().lowercase()
-    val taskName = "jibPublish${taskNameSuffix(normalizedLine)}PlatformImages"
-    tasks.register<Exec>(taskName) {
-        group = "jib"
-        description = "Publishes Spark Platform images for $normalizedLine."
-        workingDir = rootDir
-        commandLine(
-            rootProject.layout.projectDirectory.file("gradlew").asFile.absolutePath,
-            ":platform-image:jibPublishPlatformImages",
-            "--no-configuration-cache",
-            "-PsparkPlatform.line=$normalizedLine",
-            "-PsparkPlatform.imageConfig=${platformImageConfigPath.get()}",
-            "-PsparkPlatform.variants=${defaultImageVariantsByLine.getValue(normalizedLine).joinToString(",")}",
-            "-PsparkPlatform.imageRepository=${imageRepository.get()}",
-            "-PsparkPlatform.baseImageRepository=${baseImageRepositoryFor(normalizedLine)}",
-            "-PsparkPlatform.baseImageSuffix=${baseImageSuffixFor(normalizedLine)}",
-            "-PsparkPlatform.buildIndividualImages=false",
-            "-PsparkPlatform.buildCombinedImages=true"
-        )
+    profiles.map { profileName ->
+        val taskName = "jibPublish${taskNameSuffix(normalizedLine)}${taskNameSuffix(profileName)}PlatformImage"
+        tasks.register<Exec>(taskName) {
+            group = "jib"
+            description = "Publishes the $profileName Spark Platform image for $normalizedLine."
+            workingDir = rootDir
+            commandLine(
+                rootProject.layout.projectDirectory.file("gradlew").asFile.absolutePath,
+                ":platform-image:jibPublishPlatformImages",
+                "--no-configuration-cache",
+                "-PsparkPlatform.line=$normalizedLine",
+                "-PsparkPlatform.profile=$profileName",
+                "-PsparkPlatform.imageConfig=${platformImageConfigPath.get()}",
+                "-PsparkPlatform.imageRepository=${imageRepository.get()}",
+                "-PsparkPlatform.baseImageRepository=${baseImageRepositoryFor(normalizedLine)}",
+                "-PsparkPlatform.baseImageSuffix=${baseImageSuffixFor(normalizedLine)}",
+                "-PsparkPlatform.buildIndividualImages=false",
+                "-PsparkPlatform.buildCombinedImages=true"
+            )
+        }
+        taskName
     }
-    taskName
 }
 
 jibPublishAllPlatformImageTaskNames.zipWithNext().forEach { (previousTaskName, nextTaskName) ->

@@ -13,6 +13,9 @@ val platformLine: Provider<String> = providers.gradleProperty("sparkPlatform.lin
 val platformVariants: Provider<List<String>> = providers.gradleProperty("sparkPlatform.variants")
     .map { parseVariants(it) }
     .orElse(emptyList())
+val platformAddons: Provider<List<String>> = providers.gradleProperty("sparkPlatform.addons")
+    .map { parseVariants(it) }
+    .orElse(emptyList())
 val libsCatalog: VersionCatalog = extensions.getByType<VersionCatalogsExtension>().named("libs")
 val variantCamelBoundary = Regex("(?<=[a-z0-9])(?=[A-Z])")
 
@@ -53,6 +56,10 @@ fun variantManagedBundleName(line: String, variant: String): String {
     return "${variantBundleName(line, variant)}-managed"
 }
 
+fun addonBundleName(line: String, addon: String): String {
+    return "spark-platform-${normalizeLine(line)}-addon-${normalizeVariant(addon)}"
+}
+
 fun MinimalExternalModuleDependency.requiredVersion(): String {
     val version = versionConstraint.requiredVersion
         .ifBlank { versionConstraint.preferredVersion }
@@ -79,11 +86,13 @@ fun bundleOrNull(name: String): ExternalModuleDependencyBundle? {
 
 fun managedBundles(
     line: String,
-    requestedVariants: Iterable<String>
+    requestedVariants: Iterable<String>,
+    requestedAddons: Iterable<String>
 ): List<ExternalModuleDependencyBundle> = buildList {
     val variants = normalizeVariants(requestedVariants)
+    val addons = normalizeVariants(requestedAddons)
 
-    if (variants.size == 1) {
+    if (variants.size == 1 && addons.isEmpty()) {
         val variantManagedBundle = bundleOrNull(
             variantManagedBundleName(line, variants.single())
         )
@@ -100,11 +109,14 @@ fun managedBundles(
                 ?: bundle(variantBundleName(line, variant))
         )
     }
+    addons.forEach { addon ->
+        add(bundle(addonBundleName(line, addon)))
+    }
 }
 
 dependencies {
     constraints {
-        managedBundles(platformLine.get(), platformVariants.get()).forEach { bundle ->
+        managedBundles(platformLine.get(), platformVariants.get(), platformAddons.get()).forEach { bundle ->
             bundle.forEach { dependency ->
                 api("${dependency.module.group}:${dependency.module.name}") {
                     version {

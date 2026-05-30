@@ -7,8 +7,10 @@ abstract class SparkPlatformExtension {
     abstract val officialBuild: Property<Boolean>
     abstract val localPlatformImage: Property<Boolean>
     abstract val line: Property<String>
+    abstract val profile: Property<String>
     abstract val platformVersion: Property<String>
     abstract val platformImage: Property<String>
     abstract val imageTag: Property<String>
     abstract val variants: ListProperty<String>
+    abstract val addons: ListProperty<String>
 }

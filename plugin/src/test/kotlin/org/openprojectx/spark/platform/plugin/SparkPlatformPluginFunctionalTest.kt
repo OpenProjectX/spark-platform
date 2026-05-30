@@ -122,6 +122,25 @@ class SparkPlatformPluginFunctionalTest {
     }
 
     @Test
+    fun `addons contribute constraints without being modeled as variants`() {
+        writeFixture(
+            """
+            sparkPlatform {
+                line.set("spark4")
+                variants.set(listOf("iceberg"))
+                addons.set(listOf("hadoopAws"))
+            }
+            """.trimIndent()
+        )
+
+        val result = gradleRunner("printSparkPlatform").build()
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":printSparkPlatform")?.outcome)
+        assertTrue(result.output.contains("constraint=org.apache.iceberg:iceberg-spark-runtime-4.0_2.13:1.10.0"))
+        assertTrue(result.output.contains("constraint=org.apache.hadoop:hadoop-aws:3.4.2"))
+    }
+
+    @Test
     fun `spark3 scala 2_13 line uses only scala 2_13 Spark constraints`() {
         writeFixture(
             """
@@ -149,6 +168,7 @@ class SparkPlatformPluginFunctionalTest {
             sparkPlatform {
                 line.set("spark4")
                 variants.set(listOf("iceberg"))
+                addons.set(listOf("hadoopAws"))
                 platformImage.set("registry.example.com/spark-platform")
             }
             """.trimIndent()
@@ -157,9 +177,29 @@ class SparkPlatformPluginFunctionalTest {
         val result = gradleRunner("printJib").build()
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":printJib")?.outcome)
-        assertTrue(result.output.contains("fromImage=docker://registry.example.com/spark-platform:spark4-iceberg-1.2.3"))
+        assertTrue(result.output.contains("fromImage=docker://registry.example.com/spark-platform:spark4-iceberg-hadoopaws-1.2.3"))
         assertTrue(result.output.contains("jibJvmFlag=--add-opens=java.base/java.nio=ALL-UNNAMED"))
         assertTrue(result.output.contains("jibExtraClasspath=/opt/spark/jars/*"))
+    }
+
+    @Test
+    fun `plugin can use a curated profile tag for application images`() {
+        writeFixture(
+            """
+            sparkPlatform {
+                line.set("spark4")
+                profile.set("lakehouse")
+                variants.set(listOf("iceberg", "openlineage"))
+                addons.set(listOf("hadoopAws"))
+                platformImage.set("registry.example.com/spark-platform")
+            }
+            """.trimIndent()
+        )
+
+        val result = gradleRunner("printJib").build()
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":printJib")?.outcome)
+        assertTrue(result.output.contains("fromImage=docker://registry.example.com/spark-platform:spark4-lakehouse-1.2.3"))
     }
 
     @Test

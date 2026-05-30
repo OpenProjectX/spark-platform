@@ -23,9 +23,17 @@ data class CapabilityResolutionRule(
     val reason: String
 )
 
+data class PlatformImageProfile(
+    val variants: List<String>,
+    val addons: List<String>
+)
+
 data class PlatformImageConfig(
     val baseImageDefaultsByLine: Map<String, BaseImageDefaults>,
     val defaultImageVariantsByLine: Map<String, List<String>>,
+    val defaultImageAddonsByLine: Map<String, List<String>>,
+    val defaultImageProfilesByLine: Map<String, List<String>>,
+    val profilesByLine: Map<String, Map<String, PlatformImageProfile>>,
     val isolatedCombinedImageVariantsByLine: Map<String, Set<String>>,
     val baseProvidedTransitiveGroups: Set<String>,
     val capabilityResolutionRules: List<CapabilityResolutionRule>
@@ -63,6 +71,43 @@ fun loadPlatformImageConfig(
                 .filter(String::isNotEmpty)
                 .distinct()
         }
+
+    val defaultAddons = config.getTable("defaultAddons")
+    val defaultImageAddonsByLine = defaultAddons?.keySet()
+        ?.associate { line ->
+            line.trim().lowercase() to stringList(defaultAddons, line, file)
+                .map(normalizeVariant)
+                .filter(String::isNotEmpty)
+                .distinct()
+        }.orEmpty()
+
+    val defaultProfiles = config.getTable("defaultProfiles")
+    val defaultImageProfilesByLine = defaultProfiles?.keySet()
+        ?.associate { line ->
+            line.trim().lowercase() to stringList(defaultProfiles, line, file)
+                .map(normalizeVariant)
+                .filter(String::isNotEmpty)
+                .distinct()
+        }.orEmpty()
+
+    val profiles = config.getTable("profiles")
+    val profilesByLine = profiles?.keySet()
+        ?.associate { line ->
+            val lineProfiles = requireTable(profiles, line, file)
+            line.trim().lowercase() to lineProfiles.keySet().associate { profile ->
+                val profileConfig = requireTable(lineProfiles, profile, file)
+                normalizeVariant(profile) to PlatformImageProfile(
+                    variants = stringList(profileConfig, "variants", file)
+                        .map(normalizeVariant)
+                        .filter(String::isNotEmpty)
+                        .distinct(),
+                    addons = stringList(profileConfig, "addons", file)
+                        .map(normalizeVariant)
+                        .filter(String::isNotEmpty)
+                        .distinct()
+                )
+            }
+        }.orEmpty()
 
     val isolatedVariants = config.getTable("isolatedVariants")
     val isolatedCombinedImageVariantsByLine = isolatedVariants?.keySet()
@@ -106,6 +151,9 @@ fun loadPlatformImageConfig(
     return PlatformImageConfig(
         baseImageDefaultsByLine = baseImageDefaultsByLine,
         defaultImageVariantsByLine = defaultImageVariantsByLine,
+        defaultImageAddonsByLine = defaultImageAddonsByLine,
+        defaultImageProfilesByLine = defaultImageProfilesByLine,
+        profilesByLine = profilesByLine,
         isolatedCombinedImageVariantsByLine = isolatedCombinedImageVariantsByLine,
         baseProvidedTransitiveGroups = config.getTable("resolution")
             ?.let { stringList(it, "baseProvidedTransitiveGroups", file).toSet() }

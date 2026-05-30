@@ -31,12 +31,24 @@ class SparkPlatformPlugin : Plugin<Project> {
                 .orElse(project.provider { project.isJibDockerBuild() })
         )
         extension.line.convention(project.providers.gradleProperty("sparkPlatform.line").orElse(SparkPlatformCatalog.DEFAULT_LINE))
+        extension.profile.convention("")
         extension.platformVersion.convention(project.provider { project.version.toString() })
         extension.platformImage.convention("ghcr.io/openprojectx/spark-platform")
         extension.imageTag.convention(project.provider {
-            SparkPlatformCatalog.imageTag(extension.line.get(), extension.variants.get(), extension.platformVersion.get())
+            val profile = extension.profile.get().trim()
+            if (profile.isNotEmpty()) {
+                SparkPlatformCatalog.profileImageTag(extension.line.get(), profile, extension.platformVersion.get())
+            } else {
+                SparkPlatformCatalog.imageTag(
+                    extension.line.get(),
+                    extension.variants.get(),
+                    extension.addons.get(),
+                    extension.platformVersion.get()
+                )
+            }
         })
         extension.variants.convention(emptyList())
+        extension.addons.convention(emptyList())
 
         configureKnownCapabilityResolutions(project)
 
@@ -88,7 +100,7 @@ class SparkPlatformPlugin : Plugin<Project> {
             project.configurations.named(targetConfiguration).configure { it.extendsFrom(managed, bom) }
 
             val catalog = project.versionCatalog()
-            val selectedBundles = catalog.managedBundles(extension.line.get(), extension.variants.get())
+            val selectedBundles = catalog.managedBundles(extension.line.get(), extension.variants.get(), extension.addons.get())
             selectedBundles.forEach { bundle ->
                 bundle.forEach { dependency ->
                     project.dependencies.constraints.add(
@@ -202,11 +214,13 @@ class SparkPlatformPlugin : Plugin<Project> {
 
     private fun VersionCatalog.managedBundles(
         line: String,
-        requestedVariants: Iterable<String>
+        requestedVariants: Iterable<String>,
+        requestedAddons: Iterable<String>
     ): List<ExternalModuleDependencyBundle> {
         val variants = SparkPlatformCatalog.normalizeVariants(requestedVariants)
+        val addons = SparkPlatformCatalog.normalizeVariants(requestedAddons)
 
-        if (variants.size == 1) {
+        if (variants.size == 1 && addons.isEmpty()) {
             val variantManagedBundle = bundleOrNull(
                 SparkPlatformCatalog.variantManagedBundle(line, variants.single())
             )
@@ -222,6 +236,9 @@ class SparkPlatformPlugin : Plugin<Project> {
                     bundleOrNull(SparkPlatformCatalog.variantManagedBundle(line, variant))
                         ?: bundle(SparkPlatformCatalog.variantBundle(line, variant))
                 )
+            }
+            addons.forEach { addon ->
+                add(bundle(SparkPlatformCatalog.addonBundle(line, addon)))
             }
         }
     }

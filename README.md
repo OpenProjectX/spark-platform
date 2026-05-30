@@ -100,12 +100,13 @@ env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuildPlatf
 Platform images use project-owned clean Spark base images such as
 `ghcr.io/openprojectx/spark:3.5.8-scala2.12-java17-python3-r-ubuntu` and
 `ghcr.io/openprojectx/spark:4.0.1-scala2.13-java17-python3-r-ubuntu`, then layer
-only the selected variant jars into `/opt/spark/jars`. Spark, Scala, Hadoop,
-and the core runtime jars are assembled by `spark-base-image` from the Gradle
-version catalog and BOM, so `hadoopSpark3` and `hadoopSpark4` are real base
-image contents rather than classpath overrides of jars bundled by an upstream
-Spark image. Variant names are part of the generated image tag, for example
-`spark4-iceberg-0.1.1-SNAPSHOT`.
+only the selected variant and addon jars into `/opt/spark/jars`. Spark, Scala,
+Hadoop, and the core runtime jars are assembled by `spark-base-image` from the
+Gradle version catalog and BOM, so `hadoopSpark3` and `hadoopSpark4` are real
+base image contents rather than classpath overrides of jars bundled by an
+upstream Spark image. Curated images use profile tags such as
+`spark4-lakehouse-0.1.1-SNAPSHOT`; explicit custom images include selected
+variants and addons in the tag.
 
 The `spark-base-image` module publishes project-owned base images to
 `ghcr.io/openprojectx/spark` for every supported Spark line. It first builds a
@@ -116,8 +117,8 @@ catalog-managed runtime jars. Base images are released separately through the
 images and do not rebuild them.
 
 The aggregate `jibDockerBuildPlatformImages` task builds each selected variant
-individually, then builds one combined image for each Scala-compatible variant
-group.
+with the selected addons individually, then builds one combined image for each
+Scala-compatible variant group.
 Build one explicit variant set with:
 
 ```bash

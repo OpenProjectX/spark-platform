@@ -7,11 +7,11 @@ Spark Platform provides a Gradle plugin, a BOM, and a Jib-built platform image
 for Spark applications.
 
 The main goal is to make Spark runtime ownership explicit. Application projects
-select a Spark line and runtime variants; Spark Platform owns the Spark,
-Hadoop, Scala, and variant runtime artifacts for that selection. This keeps
-local, CI, and production builds on the same stack and avoids application builds
-that work locally only because a developer happened to declare a different
-Spark dependency.
+select a Spark line, runtime variants, and optional addons; Spark Platform owns
+the Spark, Hadoop, Scala, variant, and addon runtime artifacts for that
+selection. This keeps local, CI, and production builds on the same stack and
+avoids application builds that work locally only because a developer happened
+to declare a different Spark dependency.
 
 == Concepts
 
@@ -21,8 +21,8 @@ Spark line::
   `spark-platform-<line>-managed`.
 
 Platform-owned dependency::
-  A Spark, Hadoop, Scala, or variant runtime artifact whose version is owned by
-  Spark Platform. Application builds may opt into these coordinates on the
+  A Spark, Hadoop, Scala, variant, or addon runtime artifact whose version is
+  owned by Spark Platform. Application builds may opt into these coordinates on the
   `sparkPlatform` configuration, but they do not declare versions for them.
 
 Application-owned dependency::
@@ -40,8 +40,8 @@ Local build::
 
 Platform image::
   A container image built by the `platform-image` module. It places selected
-  variant jars under `/opt/spark/jars` on top of the matching Apache Spark
-  base image.
+  variant and addon jars under `/opt/spark/jars` on top of the matching Apache
+  Spark base image.
 
 == Applying the Plugin
 
@@ -73,13 +73,15 @@ Application projects select the platform:
 sparkPlatform {
     line.set("spark4")
     variants.set(listOf("iceberg"))
+    addons.set(listOf("hadoopAws"))
 }
 ----
 
 The plugin then adds the platform-owned dependencies from
 `gradle/libs.versions.toml` as strict constraints. For the example above, the
 selected constraint bundles include Spark 4, Hadoop for Spark 4, and the Spark 4
-Iceberg runtime.
+Iceberg runtime. Addons such as `hadoopAws` add platform-owned supplemental
+libraries without becoming Spark/Scala compatibility dimensions.
 
 Application builds then opt into the platform-owned APIs they compile against by
 using the `sparkPlatform` configuration without versions:
@@ -95,9 +97,10 @@ dependencies {
 Application builds should not put versions for Spark, Hadoop, Scala, Iceberg,
 Hudi, Paimon, or OpenLineage artifacts in build scripts. To change that stack,
 change the platform catalog and platform image, then let applications select the
-updated line or variant. The selected variants also determine the application
-base image tag, so a single `iceberg` variant uses the Iceberg platform image
-and a multi-variant selection uses the matching combined platform image.
+updated line, variant, or addon. Variants describe compatibility-bearing Spark
+runtime families. Addons describe supplemental platform-owned dependency packs.
+Curated platform images use profile tags such as `spark4-lakehouse-<version>`
+so common addons do not make tags grow without bound.
 
 Application-owned libraries still use normal Gradle configurations:
 
@@ -150,7 +153,9 @@ Configure the plugin with the `sparkPlatform` extension.
 ----
 sparkPlatform {
     line.set("spark4")
+    profile.set("lakehouse")
     variants.set(listOf("iceberg"))
+    addons.set(listOf("hadoopAws"))
     platformVersion.set("0.1.1-SNAPSHOT")
     platformImage.set("ghcr.io/openprojectx/spark-platform")
     localPlatformImage.set(false)
@@ -165,6 +170,12 @@ sparkPlatform {
 | `spark3`
 | Selects the managed version-catalog bundle. Supported lines in this repository are `spark3` and `spark4`.
 
+| `profile`
+| empty
+| Optional curated image profile name. When set, the default application base
+image tag is `<line>-<profile>-<platformVersion>`. The application should still
+set the variants and addons it compiles against.
+
 | `platformVersion`
 | `project.version`
 | Version of `org.openprojectx.spark.platform:platform-bom`.
@@ -174,8 +185,11 @@ sparkPlatform {
 | Base image repository used by Jib for application images.
 
 | `imageTag`
-| `<line>-<variant-or-variants>-<platformVersion>`
+| `<line>-<variant-or-profile>-<platformVersion>`
 | Base image tag used by Jib for application images.
+Multi-word variant and addon ids keep lower camel case in Gradle bundle names
+and are lowercased in rendered image tag segments, for example `hadoopAws`
+becomes `hadoopaws`.
 
 | `officialBuild`
 | CI-derived
@@ -191,8 +205,15 @@ builds that first build the platform image locally.
 | `variants`
 | empty list
 | Optional runtime variants. The plugin uses these to add strict constraints,
-JVM option rules, and the application base image tag. The `platform-image`
-module also accepts them through the `sparkPlatform.variants` Gradle property.
+JVM option rules, and the default application base image tag when no profile is
+set. The `platform-image` module also accepts them through the
+`sparkPlatform.variants` Gradle property.
+
+| `addons`
+| empty list
+| Optional supplemental platform dependency packs. Addons add strict
+constraints and image jars. Explicit custom image tags include addons; curated
+release tags normally use a profile name instead of listing every addon.
 |===
 
 == Gradle Properties
@@ -229,6 +250,16 @@ when set to `true`.
 | Comma-separated variants, for example `iceberg,hudi`. When omitted, platform
 image defaults are read from `gradle/spark-platform-image.toml`.
 
+| `sparkPlatform.addons`
+| Comma-separated addons, for example `hadoopAws,hadoopGcs`. Addons are
+platform-owned dependency packs that are not Spark/Scala compatibility
+dimensions.
+
+| `sparkPlatform.profile`
+| Curated platform image profile, for example `lakehouse`. Profiles expand to
+variants and addons from `gradle/spark-platform-image.toml` and use a short
+profile tag.
+
 | `sparkPlatform.imageConfig`
 | Optional path to the platform image config file. Defaults to
 `gradle/spark-platform-image.toml`.
@@ -258,15 +289,21 @@ Optional runtime families currently represented in the catalog:
 * Paimon `1.4.1`
 * OpenLineage `1.39.0`
 
+Optional addon families currently represented in the catalog:
+
+* Hadoop AWS `3.4.2`
+* Hadoop GCS connector `4.0.4`
+
 == Version Catalog Bundle Names
 
 The plugin and platform modules derive bundle names from the Spark line and
-variant name instead of branching on specific Spark versions.
+variant/addon name instead of branching on specific Spark versions.
 
 [source,text]
 ----
 spark-platform-<line>-managed
 spark-platform-<line>-variant-<variant>
+spark-platform-<line>-addon-<addon>
 spark-platform-<line>-variant-<variant>-managed
 ----
 
@@ -276,6 +313,7 @@ Examples:
 ----
 spark-platform-spark4-managed
 spark-platform-spark4-variant-iceberg
+spark-platform-spark4-addon-hadoopAws
 spark-platform-spark5-variant-legacy-managed
 ----
 
@@ -305,8 +343,9 @@ dependencies {
 ----
 
 Direct BOM use is an advanced escape hatch. The preferred contract is the
-plugin, where the application selects `line` and `variants`, then adds
-versionless `sparkPlatform(...)` dependencies for the platform APIs it uses.
+plugin, where the application selects `line`, `variants`, and optional
+`addons`, then adds versionless `sparkPlatform(...)` dependencies for the
+platform APIs it uses.
 
 When using the plugin, selected bundles contribute strict constraints to
 `sparkPlatform`. The `sparkPlatformBom` configuration remains available when a
@@ -343,11 +382,11 @@ artifacts. Use `spark3-scala213` when you need Spark 3.5.8 with Scala 2.13; it
 is a separate Spark line, not a suffix override on the Scala 2.12 `spark3`
 line.
 
-Only variant jars are layered by `platform-image`. Spark, Scala, Hadoop, SLF4J,
-snappy, and the standard `org.lz4` provider are treated as base-image-provided
-dependencies and are not copied from platform-image Gradle resolution output.
-The base image owns the runtime baseline, including the `hadoopSpark3` and
-`hadoopSpark4` versions from the catalog.
+Only variant and addon jars are layered by `platform-image`. Spark, Scala,
+Hadoop, SLF4J, snappy, and the standard `org.lz4` provider are treated as
+base-image-provided dependencies and are not copied from platform-image Gradle
+resolution output. The base image owns the runtime baseline, including the
+`hadoopSpark3` and `hadoopSpark4` versions from the catalog.
 
 Build the default Spark 4 platform images:
 
@@ -368,15 +407,16 @@ task uses `buildIndividualImages=false` and `buildCombinedImages=true`, so the
 published release surface is curated combined profiles instead of every
 individual variant tag.
 
-Default curated profiles, base image defaults, isolated variants, transitive
-excludes, and capability-resolution rules are read from
+Default curated profiles, default variants/addons, base image defaults,
+isolated variants, transitive excludes, and capability-resolution rules are read from
 `gradle/spark-platform-image.toml`. Use
 `-PsparkPlatform.imageConfig=<path>` to point platform image aggregate tasks at
 another config file.
 
 When adding another library family, add the dependency coordinates and
-`spark-platform-<line>-variant-<variant>` bundles to
-`gradle/libs.versions.toml`, then add the variant to the desired curated
+`spark-platform-<line>-variant-<variant>` or
+`spark-platform-<line>-addon-<addon>` bundles to
+`gradle/libs.versions.toml`, then add the variant/addon to the desired curated
 profiles in `gradle/spark-platform-image.toml`. The build script should
 not need to change for another dependency, base image, curated profile,
 transitive exclude, or capability rule.
@@ -390,13 +430,23 @@ env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuild \
   -PsparkPlatform.variants=iceberg,hudi,paimon,openlineage
 ----
 
+Build one explicit variant plus addon set:
+
+[source,bash]
+----
+env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuild \
+  -PsparkPlatform.line=spark4 \
+  -PsparkPlatform.variants=iceberg,openlineage \
+  -PsparkPlatform.addons=hadoopAws
+----
+
 Build only one curated profile tag:
 
 [source,bash]
 ----
 env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuildPlatformImages \
   -PsparkPlatform.line=spark4 \
-  -PsparkPlatform.variants=iceberg,hadoopAws,openlineage \
+  -PsparkPlatform.profile=lakehouse \
   -PsparkPlatform.buildIndividualImages=false \
   -PsparkPlatform.buildCombinedImages=true
 ----
@@ -416,7 +466,7 @@ By default, the platform image uses:
 
 * base image: `ghcr.io/openprojectx/spark:<spark-version>-scala<scala-binary-version>-java17-python3-r-ubuntu`
 * target image: `ghcr.io/openprojectx/spark-platform`
-* target tag: `<line>-<variant-or-variants>-<project.version>`
+* target tag: `<line>-<profile-or-variant-addon-selection>-<project.version>`
 * extra jars path: `/opt/spark/jars`
 
 Combined variant sets must use a single Scala binary version so they match one
@@ -551,8 +601,8 @@ The application image base is:
 
 Application image entrypoints include Spark Platform's managed JVM module
 options and add `/opt/spark/jars/*` to Jib's extra classpath. Application
-projects do not need to repeat Spark, Hadoop, Scala, or variant jars in their
-own image; the platform base image owns those runtime artifacts.
+projects do not need to repeat Spark, Hadoop, Scala, variant, or addon jars in
+their own image; the platform base image owns those runtime artifacts.
 
 For `jibDockerBuild`, the plugin prefixes the base image with `docker://` so
 the local Docker daemon is used and Jib does not require the platform base image
@@ -624,8 +674,8 @@ Missing bundle error::
 
 Dependency version appears in a build script::
   If the dependency is platform-owned, move the version to
-  `gradle/libs.versions.toml`, select the matching `sparkPlatform.line` or
-  `sparkPlatform.variants`, and add only the versionless coordinate to
+  `gradle/libs.versions.toml`, select the matching `sparkPlatform.line`,
+  `sparkPlatform.variants`, or `sparkPlatform.addons`, and add only the versionless coordinate to
   `sparkPlatform`. Application-owned libraries can still use normal Gradle
   dependency declarations.
 

@@ -34,6 +34,10 @@ object SparkPlatformCatalog {
         return normalizeVariants(value.split(","))
     }
 
+    fun parseAddons(value: String): List<String> {
+        return normalizeVariants(value.split(","))
+    }
+
     fun managedBundle(line: String): String = "spark-platform-${normalizeLine(line)}-managed"
 
     fun variantBundle(line: String, variant: String): String {
@@ -44,8 +48,25 @@ object SparkPlatformCatalog {
         return "${variantBundle(line, variant)}-managed"
     }
 
+    fun addonBundle(line: String, addon: String): String {
+        return "spark-platform-${normalizeLine(line)}-addon-${normalizeVariant(addon)}"
+    }
+
+    private fun imageTagPart(part: String): String = normalizeVariant(part).lowercase()
+
     fun imageTag(line: String, variants: Iterable<String>, platformVersion: String): String {
-        val variantPart = normalizeVariants(variants).joinToString("-").ifBlank { "base" }
+        val variantPart = normalizeVariants(variants).joinToString("-") { imageTagPart(it) }.ifBlank { "base" }
         return "${normalizeLine(line)}-$variantPart-${platformVersion.trim()}"
+    }
+
+    fun imageTag(line: String, variants: Iterable<String>, addons: Iterable<String>, platformVersion: String): String {
+        val tagPart = (normalizeVariants(variants) + normalizeVariants(addons))
+            .joinToString("-") { imageTagPart(it) }
+            .ifBlank { "base" }
+        return "${normalizeLine(line)}-$tagPart-${platformVersion.trim()}"
+    }
+
+    fun profileImageTag(line: String, profile: String, platformVersion: String): String {
+        return "${normalizeLine(line)}-${imageTagPart(profile)}-${platformVersion.trim()}"
     }
 }

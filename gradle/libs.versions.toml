@@ -75,7 +75,6 @@ spark4Openlineage = { module = "io.openlineage:openlineage-spark_2.13", version.
 
 spark3HadoopAws = { module = "org.apache.hadoop:hadoop-aws", version.ref = "hadoopSpark3" }
 spark4HadoopAws = { module = "org.apache.hadoop:hadoop-aws", version.ref = "hadoopSpark4" }
-#awsJavaSdkBundle = { module = "com.amazonaws:aws-java-sdk-bundle", version.ref = "awsSdkBundle" }
 spark3GcsConnector = { module = "com.google.cloud.bigdataoss:gcs-connector", version.ref = "gcsConnector" }
 spark4GcsConnector = { module = "com.google.cloud.bigdataoss:gcs-connector", version.ref = "gcsConnector" }
 
@@ -154,12 +153,12 @@ spark-base-spark4-runtime = [
     "spark4HadoopClientRuntime",
 ]
 
-spark-platform-spark3-variant-hadoopAws = ["spark3HadoopAws"]
-spark-platform-spark3-scala213-variant-hadoopAws = ["spark3HadoopAws"]
-spark-platform-spark4-variant-hadoopAws = ["spark4HadoopAws"]
-spark-platform-spark3-variant-hadoopGcs = ["spark3GcsConnector"]
-spark-platform-spark3-scala213-variant-hadoopGcs = ["spark3GcsConnector"]
-spark-platform-spark4-variant-hadoopGcs = ["spark4GcsConnector"]
+spark-platform-spark3-addon-hadoopAws = ["spark3HadoopAws"]
+spark-platform-spark3-scala213-addon-hadoopAws = ["spark3HadoopAws"]
+spark-platform-spark4-addon-hadoopAws = ["spark4HadoopAws"]
+spark-platform-spark3-addon-hadoopGcs = ["spark3GcsConnector"]
+spark-platform-spark3-scala213-addon-hadoopGcs = ["spark3GcsConnector"]
+spark-platform-spark4-addon-hadoopGcs = ["spark4GcsConnector"]
 
 [plugins]
 kotlinPluginSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
