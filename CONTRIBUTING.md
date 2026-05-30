@@ -198,6 +198,12 @@ Use lower camel case for multi-word variant ids because platform image tags use
 as `spark4-iceberg-hadoopAws-openlineage-<version>`. CLI aliases such as
 `hadoop-aws` and `hadoop_aws` are normalized to `hadoopAws`.
 
+Default platform image profiles are data, not build-script code. Add or remove
+curated line profiles in `gradle/spark-platform-image-variants.properties`.
+Each key is a Spark Platform line and each value is a comma-separated variant
+list. Use `-PsparkPlatform.imageVariantsConfig=<path>` when testing an
+alternate profile file.
+
 ## Upgrading a Spark Line
 
 1. Check the Apache release archive for the target Spark version and confirm the

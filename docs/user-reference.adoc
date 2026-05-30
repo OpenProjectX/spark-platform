@@ -226,10 +226,12 @@ when set to `true`.
 `-java17-python3-r-ubuntu`.
 
 | `sparkPlatform.variants`
-| Comma-separated variants, for example `iceberg,hudi`. Platform image defaults
-are line-aware. `spark3` and `spark4` default to
-`iceberg,hudi,paimon,openlineage`; `spark3-scala213` defaults to
-`iceberg,openlineage` because Paimon Spark 3.5 is Scala 2.12-only.
+| Comma-separated variants, for example `iceberg,hudi`. When omitted, platform
+image defaults are read from `gradle/spark-platform-image-variants.properties`.
+
+| `sparkPlatform.imageVariantsConfig`
+| Optional path to the default platform image profile file. Defaults to
+`gradle/spark-platform-image-variants.properties`.
 |===
 
 == Version Matrix
@@ -365,6 +367,11 @@ Direct aggregate builds default to both for local inspection. The release-all
 task uses `buildIndividualImages=false` and `buildCombinedImages=true`, so the
 published release surface is curated combined profiles instead of every
 individual variant tag.
+
+Default curated profiles are read from
+`gradle/spark-platform-image-variants.properties`. Use
+`-PsparkPlatform.imageVariantsConfig=<path>` to point platform image aggregate
+tasks at another profile file.
 
 Build one explicit variant set:
 

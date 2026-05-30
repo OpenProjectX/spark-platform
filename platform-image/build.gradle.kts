@@ -3,6 +3,8 @@ import org.gradle.api.artifacts.ExternalModuleDependencyBundle
 import org.gradle.api.artifacts.ModuleDependency
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import org.gradle.api.tasks.Exec
+import java.io.File
+import java.util.Properties
 
 plugins {
     java
@@ -10,6 +12,7 @@ plugins {
 }
 
 val platformLine: Provider<String> = providers.gradleProperty("sparkPlatform.line").orElse("spark3")
+val variantCamelBoundary = Regex("(?<=[a-z0-9])(?=[A-Z])")
 val imageRepository: Provider<String> = providers.gradleProperty("sparkPlatform.imageRepository")
     .orElse("ghcr.io/openprojectx/spark-platform")
 data class BaseImageDefaults(
@@ -33,18 +36,22 @@ val baseImageDefaultsByLine = mapOf(
 )
 val requestedBaseImageRepository = providers.gradleProperty("sparkPlatform.baseImageRepository")
 val requestedBaseImageSuffix = providers.gradleProperty("sparkPlatform.baseImageSuffix")
-val defaultImageVariantsByLine = mapOf(
-    "spark3" to listOf("iceberg", "hudi", "paimon", "openlineage", "hadoopAws"),
-    "spark3-scala213" to listOf("iceberg", "openlineage", "hadoopAws"),
-    "spark4" to listOf("iceberg", "hudi", "paimon", "openlineage", "hadoopAws")
+val imageVariantsConfigPath = providers.gradleProperty("sparkPlatform.imageVariantsConfig")
+    .orElse("gradle/spark-platform-image-variants.properties")
+val defaultImageVariantsByLine = loadImageVariants(
+    rootProject.layout.projectDirectory.file(imageVariantsConfigPath.get()).asFile
 )
 val isolatedCombinedImageVariantsByLine = emptyMap<String, Set<String>>()
 val variants = providers.gradleProperty("sparkPlatform.variants")
     .map { it.split(",").map(::normalizeVariant).filter(String::isNotEmpty).distinct() }
     .orElse(
         providers.provider {
-            defaultImageVariantsByLine[platformLine.get().trim().lowercase()]
-                ?: listOf("iceberg", "hudi", "paimon", "openlineage")
+            val normalizedLine = platformLine.get().trim().lowercase()
+            defaultImageVariantsByLine[normalizedLine]
+                ?: error(
+                    "No default platform image variants configured for '$normalizedLine'. " +
+                        "Add it to ${imageVariantsConfigPath.get()} or pass -PsparkPlatform.variants=..."
+                )
         }
     )
 val buildIndividualImages = providers.gradleProperty("sparkPlatform.buildIndividualImages")
@@ -54,7 +61,6 @@ val buildCombinedImages = providers.gradleProperty("sparkPlatform.buildCombinedI
     .map(String::toBoolean)
     .orElse(true)
 val libsCatalog = extensions.getByType<VersionCatalogsExtension>().named("libs")
-val variantCamelBoundary = Regex("(?<=[a-z0-9])(?=[A-Z])")
 val scalaBinaryVersionPattern = Regex(""".*_(\d+\.\d+)$""")
 val platformJars = configurations.create("platformJars") {
     isCanBeConsumed = false
@@ -136,6 +142,28 @@ fun normalizeVariant(variant: String): String {
     } else {
         words.first() + words.drop(1).joinToString("") { it.replaceFirstChar(Char::uppercaseChar) }
     }
+}
+
+fun loadImageVariants(file: File): Map<String, List<String>> {
+    require(file.isFile) {
+        "Platform image variant config file '${file.path}' does not exist."
+    }
+
+    val properties = Properties()
+    file.inputStream().use(properties::load)
+    return properties.stringPropertyNames()
+        .associate { line ->
+            line.trim().lowercase() to properties.getProperty(line)
+                .split(",")
+                .map(::normalizeVariant)
+                .filter(String::isNotEmpty)
+                .distinct()
+        }
+        .also { variantsByLine ->
+            require(variantsByLine.isNotEmpty()) {
+                "Platform image variant config file '${file.path}' must define at least one Spark line."
+            }
+        }
 }
 
 fun bundle(name: String): ExternalModuleDependencyBundle {
