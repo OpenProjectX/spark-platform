@@ -33,15 +33,15 @@ spark4 = ["lakehouse"]
 
 [profiles.spark3.lakehouse]
 variants = ["iceberg", "hudi", "paimon", "openlineage"]
-addons = ["hadoopAws"]
+addons = ["hadoopAws", "hadoopGcs"]
 
 [profiles.spark3-scala213.lakehouse]
 variants = ["iceberg", "openlineage"]
-addons = ["hadoopAws"]
+addons = ["hadoopAws", "hadoopGcs"]
 
 [profiles.spark4.lakehouse]
 variants = ["iceberg", "hudi", "paimon", "openlineage"]
-addons = ["hadoopAws"]
+addons = ["hadoopAws", "hadoopGcs"]
 
 [resolution]
 baseProvidedTransitiveGroups = [
