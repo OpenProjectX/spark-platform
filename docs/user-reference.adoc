@@ -47,7 +47,7 @@ Spark base image::
   A project-owned image built by `spark-base-image`, published as
   `ghcr.io/openprojectx/spark:<spark-version>-scala<scala>-...`. It owns the
   Spark line runtime baseline: Spark, Scala, Hadoop, and line-managed runtime
-  jars such as Spark SQL Kafka.
+  jars such as Spark SQL Kafka and Spark Avro.
 
 Application image::
   A user application image built by Jib from the selected platform image. It
@@ -364,7 +364,7 @@ when set to `true`.
 image defaults are read from `gradle/spark-platform-image.toml`.
 
 | `sparkPlatform.addons`
-| Comma-separated addons, for example `hadoopAws,hadoopGcs`. Addons are
+| Comma-separated addons, for example `hadoopAws,hadoopGcs,icebergAws`. Addons are
 platform-owned dependency packs that are not Spark/Scala compatibility
 dimensions.
 
@@ -406,12 +406,17 @@ Optional addon families currently represented in the catalog:
 
 * Hadoop AWS `3.4.2`
 * Hadoop GCS connector `4.0.4`
+* Iceberg AWS bundle `1.10.0`
 
 Spark SQL Kafka `spark-sql-kafka-0-10` is part of the line-managed Spark
 baseline. Its version follows the selected Spark line and the clean Spark base
 runtime image provides the matching jar. The platform also pins
 `org.apache.kafka:kafka-clients` to `3.9.1`, so Spark Kafka's transitive Kafka
 client is not left to dependency mediation.
+
+Spark Avro `spark-avro` is also part of the line-managed Spark baseline. Its
+artifact uses the selected Scala binary suffix and its version follows the
+selected Spark line.
 
 == Version Catalog Bundle Names
 
@@ -492,7 +497,8 @@ Bundle scope summary:
 dependencies by itself.
 | No direct packaging. Matching jars belong in the Spark base image through
 `spark-base-<line>-runtime`.
-| Spark, Scala, Hadoop, and line-managed Spark modules such as Spark SQL Kafka.
+| Spark, Scala, Hadoop, and line-managed Spark modules such as Spark SQL Kafka
+and Spark Avro.
 
 | `spark-platform-<line>-variant-<variant>`
 | Adds strict constraints when the variant is selected.
@@ -505,7 +511,8 @@ OpenLineage.
 | Adds strict constraints when the addon is selected.
 | `platform-image` resolves and layers selected addon jars into
 `/opt/spark/jars`.
-| Optional reusable support packs such as Hadoop AWS or Hadoop GCS.
+| Optional reusable support packs such as Hadoop AWS, Hadoop GCS, or Iceberg
+AWS.
 
 | `spark-base-<line>-runtime`
 | Not consumed by application builds.
@@ -525,14 +532,14 @@ Spark Platform uses three runtime image layers for normal application delivery:
 | Spark base image
 | `spark-base-image`
 | `/opt/spark` layout plus Gradle-managed Spark line runtime jars: Spark, Scala,
-Hadoop, Spark SQL Kafka, Kubernetes/YARN/MLlib/REPL modules, and related
-baseline transitive jars.
+Hadoop, Spark SQL Kafka, Spark Avro, Kubernetes/YARN/MLlib/REPL modules, and
+related baseline transitive jars.
 
 | Platform image
 | `platform-image`
 | Starts from the Spark base image and adds selected variant/addon jars under
 `/opt/spark/jars`, for example Iceberg, Hudi, Paimon, OpenLineage, Hadoop AWS,
-or Hadoop GCS.
+Hadoop GCS, or Iceberg AWS.
 
 | Application image
 | user project with the Spark Platform plugin and Jib

@@ -165,6 +165,7 @@ class SparkPlatformPluginFunctionalTest {
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":printSparkPlatform")?.outcome)
         assertTrue(result.output.contains("constraint=org.apache.spark:spark-sql_2.13:$spark4Version"))
+        assertTrue(result.output.contains("constraint=org.apache.spark:spark-avro_2.13:$spark4Version"))
         assertTrue(result.output.contains("constraint=org.apache.spark:spark-sql-kafka-0-10_2.13:$spark4Version"))
         assertTrue(result.output.contains("constraint=org.apache.kafka:kafka-clients:$kafkaClientsVersion"))
     }
@@ -176,7 +177,7 @@ class SparkPlatformPluginFunctionalTest {
             sparkPlatform {
                 line.set("spark4")
                 variants.set(listOf("iceberg"))
-                addons.set(listOf("hadoopAws"))
+                addons.set(listOf("hadoopAws", "icebergAws"))
             }
             """.trimIndent()
         )
@@ -186,6 +187,7 @@ class SparkPlatformPluginFunctionalTest {
         assertEquals(TaskOutcome.SUCCESS, result.task(":printSparkPlatform")?.outcome)
         assertTrue(result.output.contains("constraint=org.apache.iceberg:iceberg-spark-runtime-4.0_2.13:1.10.0"))
         assertTrue(result.output.contains("constraint=org.apache.hadoop:hadoop-aws:3.4.2"))
+        assertTrue(result.output.contains("constraint=org.apache.iceberg:iceberg-aws-bundle:1.10.0"))
     }
 
     @Test

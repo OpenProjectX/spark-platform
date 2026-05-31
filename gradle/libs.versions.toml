@@ -34,6 +34,7 @@ checkerQual = { module = "org.checkerframework:checker-qual", version.ref = "che
 spark3Core = { module = "org.apache.spark:spark-core_2.12", version.ref = "spark3" }
 spark3Sql = { module = "org.apache.spark:spark-sql_2.12", version.ref = "spark3" }
 spark3Hive = { module = "org.apache.spark:spark-hive_2.12", version.ref = "spark3" }
+spark3Avro = { module = "org.apache.spark:spark-avro_2.12", version.ref = "spark3" }
 spark3HiveThriftserver = { module = "org.apache.spark:spark-hive-thriftserver_2.12", version.ref = "spark3" }
 spark3Yarn = { module = "org.apache.spark:spark-yarn_2.12", version.ref = "spark3" }
 spark3Kubernetes = { module = "org.apache.spark:spark-kubernetes_2.12", version.ref = "spark3" }
@@ -48,9 +49,11 @@ spark3Paimon = { module = "org.apache.paimon:paimon-spark-3.5_2.12", version.ref
 spark3Openlineage = { module = "io.openlineage:openlineage-spark_2.12", version.ref = "openlineage" }
 spark3Kafka = { module = "org.apache.spark:spark-sql-kafka-0-10_2.12", version.ref = "spark3" }
 sparkKafkaClients = { module = "org.apache.kafka:kafka-clients", version.ref = "kafkaClients" }
+icebergAwsBundle = { module = "org.apache.iceberg:iceberg-aws-bundle", version.ref = "iceberg" }
 spark3Scala213Core = { module = "org.apache.spark:spark-core_2.13", version.ref = "spark3-scala213" }
 spark3Scala213Sql = { module = "org.apache.spark:spark-sql_2.13", version.ref = "spark3-scala213" }
 spark3Scala213Hive = { module = "org.apache.spark:spark-hive_2.13", version.ref = "spark3-scala213" }
+spark3Scala213Avro = { module = "org.apache.spark:spark-avro_2.13", version.ref = "spark3-scala213" }
 spark3Scala213HiveThriftserver = { module = "org.apache.spark:spark-hive-thriftserver_2.13", version.ref = "spark3-scala213" }
 spark3Scala213Yarn = { module = "org.apache.spark:spark-yarn_2.13", version.ref = "spark3-scala213" }
 spark3Scala213Kubernetes = { module = "org.apache.spark:spark-kubernetes_2.13", version.ref = "spark3-scala213" }
@@ -64,6 +67,7 @@ spark3Scala213Kafka = { module = "org.apache.spark:spark-sql-kafka-0-10_2.13", v
 spark4Core = { module = "org.apache.spark:spark-core_2.13", version.ref = "spark4" }
 spark4Sql = { module = "org.apache.spark:spark-sql_2.13", version.ref = "spark4" }
 spark4Hive = { module = "org.apache.spark:spark-hive_2.13", version.ref = "spark4" }
+spark4Avro = { module = "org.apache.spark:spark-avro_2.13", version.ref = "spark4" }
 spark4HiveThriftserver = { module = "org.apache.spark:spark-hive-thriftserver_2.13", version.ref = "spark4" }
 spark4Yarn = { module = "org.apache.spark:spark-yarn_2.13", version.ref = "spark4" }
 spark4Kubernetes = { module = "org.apache.spark:spark-kubernetes_2.13", version.ref = "spark4" }
@@ -93,6 +97,7 @@ spark-platform-spark3-managed = [
     "spark3Core",
     "spark3Sql",
     "spark3Hive",
+    "spark3Avro",
     "spark3Kafka",
     "sparkKafkaClients",
     "spark3HadoopClientApi",
@@ -106,6 +111,7 @@ spark-base-spark3-runtime = [
     "spark3Core",
     "spark3Sql",
     "spark3Hive",
+    "spark3Avro",
     "spark3Kafka",
     "sparkKafkaClients",
     "spark3HiveThriftserver",
@@ -122,6 +128,7 @@ spark-platform-spark3-scala213-managed = [
     "spark3Scala213Core",
     "spark3Scala213Sql",
     "spark3Scala213Hive",
+    "spark3Scala213Avro",
     "spark3Scala213Kafka",
     "sparkKafkaClients",
     "spark3HadoopClientApi",
@@ -133,6 +140,7 @@ spark-base-spark3-scala213-runtime = [
     "spark3Scala213Core",
     "spark3Scala213Sql",
     "spark3Scala213Hive",
+    "spark3Scala213Avro",
     "spark3Scala213Kafka",
     "sparkKafkaClients",
     "spark3Scala213HiveThriftserver",
@@ -149,6 +157,7 @@ spark-platform-spark4-managed = [
     "spark4Core",
     "spark4Sql",
     "spark4Hive",
+    "spark4Avro",
     "spark4Kafka",
     "sparkKafkaClients",
     "spark4HadoopClientApi",
@@ -162,6 +171,7 @@ spark-base-spark4-runtime = [
     "spark4Core",
     "spark4Sql",
     "spark4Hive",
+    "spark4Avro",
     "spark4Kafka",
     "sparkKafkaClients",
     "spark4HiveThriftserver",
@@ -180,6 +190,9 @@ spark-platform-spark4-addon-hadoopAws = ["spark4HadoopAws"]
 spark-platform-spark3-addon-hadoopGcs = ["gcsConnector", "gcsio", "gcsUtilHadoop"]
 spark-platform-spark3-scala213-addon-hadoopGcs = ["gcsConnector", "gcsio", "gcsUtilHadoop"]
 spark-platform-spark4-addon-hadoopGcs = ["gcsConnector", "gcsio", "gcsUtilHadoop"]
+spark-platform-spark3-addon-icebergAws = ["icebergAwsBundle"]
+spark-platform-spark3-scala213-addon-icebergAws = ["icebergAwsBundle"]
+spark-platform-spark4-addon-icebergAws = ["icebergAwsBundle"]
 
 [plugins]
 kotlinPluginSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

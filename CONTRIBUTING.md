@@ -131,6 +131,7 @@ Examples:
 
 - `hadoopAws`
 - `hadoopGcs`
+- `icebergAws`
 - JDBC driver packs, if added later.
 
 Use addons for fundamental or operational dependencies that can combine with
@@ -213,7 +214,7 @@ It is not the default contract for Spark-owned runtime jars.
 | Concept | Gradle scope | Runtime packaging scope |
 | --- | --- | --- |
 | `spark-platform-<line>-managed` | Strict constraints for the selected Spark line. No dependency is added unless the app declares a matching coordinate. | No direct packaging. Matching baseline jars are packaged by `spark-base-<line>-runtime` in the Spark base image. |
-| `spark-base-<line>-runtime` | Not consumed by application builds. | Builds the clean Spark base image runtime jar set: Spark, Scala, Hadoop, Spark SQL Kafka, Kubernetes/YARN/MLlib/REPL modules, and baseline transitives. |
+| `spark-base-<line>-runtime` | Not consumed by application builds. | Builds the clean Spark base image runtime jar set: Spark, Scala, Hadoop, Spark SQL Kafka, Spark Avro, Kubernetes/YARN/MLlib/REPL modules, and baseline transitives. |
 | `spark-platform-<line>-variant-<variant>` | Strict constraints when the variant is selected. | Selected variant jars are layered by `platform-image` into `/opt/spark/jars`. |
 | `spark-platform-<line>-addon-<addon>` | Strict constraints when the addon is selected. | Selected addon jars are layered by `platform-image` into `/opt/spark/jars`. |
 | `profile` | Selects a curated platform image tag. It does not replace `variants` or `addons` for compile intent. | Chooses a curated platform image combination, such as `spark4-lakehouse-<version>`. |
@@ -242,7 +243,7 @@ There are three runtime image layers in the delivery model:
 
 | Layer | Built by | Contents | Change cadence |
 | --- | --- | --- | --- |
-| Spark base image | `spark-base-image` | `/opt/spark` plus Gradle-managed Spark line jars from `spark-base-<line>-runtime`: Spark, Scala, Hadoop, Spark SQL Kafka, Kubernetes/YARN/MLlib/REPL modules, and baseline transitives. | Spark/Hadoop/Scala line upgrades and CVE/runtime baseline fixes. |
+| Spark base image | `spark-base-image` | `/opt/spark` plus Gradle-managed Spark line jars from `spark-base-<line>-runtime`: Spark, Scala, Hadoop, Spark SQL Kafka, Spark Avro, Kubernetes/YARN/MLlib/REPL modules, and baseline transitives. | Spark/Hadoop/Scala line upgrades and CVE/runtime baseline fixes. |
 | Platform image | `platform-image` | Starts from the Spark base image and adds selected variant/addon jars under `/opt/spark/jars`. | Platform release when supported variants/addons/profiles change. |
 | Application image | User project with the plugin and Jib | Starts from the selected platform image and adds user classes, resources, and application-owned libraries. | Application release. |
 
@@ -273,8 +274,13 @@ Practical examples:
 - Spark SQL Kafka is line-managed baseline content because it is a Spark-owned
   module whose version follows the selected Spark line and whose jar should be
   present in the clean Spark runtime image.
+- Spark Avro is line-managed baseline content for the same reason: its
+  Spark-owned artifact uses the selected Scala binary suffix and follows the
+  selected Spark line version.
 - Hadoop AWS is an addon because S3 support is useful across many table-format
   variants and is not a Spark integration family by itself.
+- Iceberg AWS is an addon because it supports Iceberg AWS catalogs/file IO but
+  is not a Spark/Scala compatibility dimension.
 - `lakehouse` is a profile because it is a curated release image name that
   expands to a chosen set of variants and addons.
 
@@ -339,8 +345,10 @@ keys.
 [libraries]
 spark4Sql = { module = "org.apache.spark:spark-sql_2.13", version.ref = "spark4" }
 spark4Iceberg = { module = "org.apache.iceberg:iceberg-spark-runtime-4.0_2.13", version.ref = "iceberg" }
+spark4Avro = { module = "org.apache.spark:spark-avro_2.13", version.ref = "spark4" }
 spark4Kafka = { module = "org.apache.spark:spark-sql-kafka-0-10_2.13", version.ref = "spark4" }
 sparkKafkaClients = { module = "org.apache.kafka:kafka-clients", version.ref = "kafkaClients" }
+icebergAwsBundle = { module = "org.apache.iceberg:iceberg-aws-bundle", version.ref = "iceberg" }
 spark4HadoopAws = { module = "org.apache.hadoop:hadoop-aws", version.ref = "hadoopSpark4" }
 ```
 
@@ -388,16 +396,19 @@ spark-platform-spark4-managed = [
     "spark4Core",
     "spark4Sql",
     "spark4Hive",
+    "spark4Avro",
     "spark4Kafka",
     "spark4HadoopClientApi",
     "spark4HadoopClientRuntime",
 ]
 spark-platform-spark4-variant-iceberg = ["spark4Iceberg"]
 spark-platform-spark4-addon-hadoopAws = ["spark4HadoopAws"]
+spark-platform-spark4-addon-icebergAws = ["icebergAwsBundle"]
 spark-base-spark4-runtime = [
     "spark4Core",
     "spark4Sql",
     "spark4Hive",
+    "spark4Avro",
     "spark4Kafka",
     "spark4HiveThriftserver",
     "spark4Yarn",
@@ -422,8 +433,8 @@ Bundle meanings:
   isolated variant BOM. Use only when a variant cannot share the normal
   line-managed baseline.
 - `spark-platform-<line>-addon-<addon>`:
-  optional reusable support pack, such as Hadoop AWS, Hadoop GCS, or future JDBC
-  driver packs.
+  optional reusable support pack, such as Hadoop AWS, Hadoop GCS, Iceberg AWS,
+  or future JDBC driver packs.
 - `spark-base-<line>-runtime`:
   jars that make up the clean Spark runtime base image for the line. This is
   broader than application constraints because the base image needs Spark
@@ -676,7 +687,7 @@ Implications:
 - Each listed addon must have a matching `spark-platform-<line>-addon-<addon>`
   bundle in `gradle/libs.versions.toml`.
 - Defaults affect aggregate image builds. A user can still request explicit
-  addons with `-PsparkPlatform.addons=hadoopAws,hadoopGcs` or
+  addons with `-PsparkPlatform.addons=hadoopAws,hadoopGcs,icebergAws` or
   `sparkPlatform { addons.set(...) }`.
 
 ### `defaultProfiles`
@@ -705,7 +716,7 @@ variants and addons.
 ```toml
 [profiles.spark4.lakehouse]
 variants = ["iceberg", "hudi", "paimon", "openlineage"]
-addons = ["hadoopAws", "hadoopGcs"]
+addons = ["hadoopAws", "hadoopGcs", "icebergAws"]
 ```
 
 The profile affects image tags and image contents:
