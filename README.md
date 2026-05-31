@@ -10,7 +10,8 @@ The project provides:
 - a Gradle plugin: `org.openprojectx.spark.platform`
 - a platform BOM: `org.openprojectx.spark.platform:platform-bom`
 - a platform base-image module that packages selected runtime jars
-- a version matrix for Spark 3, Spark 4, Hadoop, Iceberg, Hudi, Paimon, and OpenLineage
+- a version matrix for Apache Spark and Cloudera Spark lines, Hadoop, Iceberg,
+  Hudi, Paimon, and OpenLineage
 
 The plugin adds platform-owned constraints from the selected line and variants.
 Application projects opt into the Spark or variant APIs they compile against by

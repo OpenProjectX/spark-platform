@@ -10,14 +10,20 @@ checkerQual = "3.21.2"
 spark3 = "3.5.8"
 "spark3-scala213" = "3.5.8"
 spark4 = "4.0.1"
+cloudera = "3.3.2.3.3.7190.9-1"
 hadoopSpark3 = "3.4.2"
 hadoopSpark4 = "3.4.2"
+clouderaHadoop = "3.1.1.7.1.9.14-2"
 iceberg = "1.10.0"
+clouderaIceberg = "1.8.1"
 hudi = "1.2.0"
 paimon = "1.4.1"
 openlineage = "1.39.0"
 gcsConnector = "4.0.4"
 kafkaClients = "3.9.1"
+clouderaScala = "2.12.15"
+scalaCollectionCompat212 = "2.7.0"
+clouderaSlf4j = "1.7.36"
 
 [libraries]
 kotlinGradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
@@ -81,6 +87,21 @@ spark4Hudi = { module = "org.apache.hudi:hudi-spark4.0-bundle_2.13", version.ref
 spark4Paimon = { module = "org.apache.paimon:paimon-spark-4.0_2.13", version.ref = "paimon" }
 spark4Openlineage = { module = "io.openlineage:openlineage-spark_2.13", version.ref = "openlineage" }
 spark4Kafka = { module = "org.apache.spark:spark-sql-kafka-0-10_2.13", version.ref = "spark4" }
+
+clouderaSparkCore = { module = "org.apache.spark:spark-core_2.12", version.ref = "cloudera" }
+clouderaSparkSql = { module = "org.apache.spark:spark-sql_2.12", version.ref = "cloudera" }
+clouderaSparkHive = { module = "org.apache.spark:spark-hive_2.12", version.ref = "cloudera" }
+clouderaAvro = { module = "org.apache.spark:spark-avro_2.12", version.ref = "cloudera" }
+clouderaKafka = { module = "org.apache.spark:spark-sql-kafka-0-10_2.12", version.ref = "cloudera" }
+clouderaKafkaClients = { module = "org.apache.kafka:kafka-clients", version.ref = "kafkaClients" }
+clouderaHadoopAws = { module = "org.apache.hadoop:hadoop-aws", version.ref = "clouderaHadoop" }
+clouderaIcebergSparkRuntime = { module = "org.apache.iceberg:iceberg-spark-runtime-3.3_2.12", version.ref = "clouderaIceberg" }
+clouderaIcebergAwsBundle = { module = "org.apache.iceberg:iceberg-aws-bundle", version.ref = "clouderaIceberg" }
+clouderaScalaLibrary = { module = "org.scala-lang:scala-library", version.ref = "clouderaScala" }
+clouderaScalaReflect = { module = "org.scala-lang:scala-reflect", version.ref = "clouderaScala" }
+clouderaScalaCompiler = { module = "org.scala-lang:scala-compiler", version.ref = "clouderaScala" }
+scalaCollectionCompat212 = { module = "org.scala-lang.modules:scala-collection-compat_2.12", version.ref = "scalaCollectionCompat212" }
+clouderaSlf4jApi = { module = "org.slf4j:slf4j-api", version.ref = "clouderaSlf4j" }
 
 spark3HadoopAws = { module = "org.apache.hadoop:hadoop-aws", version.ref = "hadoopSpark3" }
 spark4HadoopAws = { module = "org.apache.hadoop:hadoop-aws", version.ref = "hadoopSpark4" }
@@ -193,6 +214,26 @@ spark-platform-spark4-addon-hadoopGcs = ["gcsConnector", "gcsio", "gcsUtilHadoop
 spark-platform-spark3-addon-icebergAws = ["icebergAwsBundle"]
 spark-platform-spark3-scala213-addon-icebergAws = ["icebergAwsBundle"]
 spark-platform-spark4-addon-icebergAws = ["icebergAwsBundle"]
+
+spark-platform-cloudera-managed = [
+    "clouderaSparkCore",
+    "clouderaSparkSql",
+    "clouderaSparkHive",
+    "clouderaScalaLibrary",
+    "clouderaScalaReflect",
+    "clouderaScalaCompiler",
+    "clouderaSlf4jApi",
+    "clouderaKafka",
+    "clouderaKafkaClients",
+    "clouderaAvro"
+]
+spark-platform-cloudera-variant-iceberg = [
+    "clouderaIcebergSparkRuntime",
+    "scalaCollectionCompat212",
+]
+spark-platform-cloudera-addon-hadoopAws = ["clouderaHadoopAws"]
+spark-platform-cloudera-addon-hadoopGcs = ["gcsConnector", "gcsio", "gcsUtilHadoop"]
+spark-platform-cloudera-addon-icebergAws = ["clouderaIcebergAwsBundle"]
 
 [plugins]
 kotlinPluginSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

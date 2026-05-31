@@ -16,15 +16,21 @@ suffix = "-java17-python3-r-ubuntu"
 repository = "ghcr.io/openprojectx/spark"
 suffix = "-java17-python3-r-ubuntu"
 
+[baseImages.cloudera]
+repository = "ghcr.io/openprojectx/spark"
+suffix = "-java17-python3-r-ubuntu"
+
 [defaultVariants]
 spark3 = ["iceberg", "hudi", "paimon", "openlineage"]
 spark3-scala213 = ["iceberg", "openlineage"]
 spark4 = ["iceberg", "hudi", "paimon", "openlineage"]
+cloudera = ["iceberg"]
 
 [defaultAddons]
 spark3 = ["hadoopAws"]
 spark3-scala213 = ["hadoopAws"]
 spark4 = ["hadoopAws"]
+cloudera = ["hadoopAws", "hadoopGcs", "icebergAws"]
 
 [defaultProfiles]
 spark3 = ["lakehouse"]

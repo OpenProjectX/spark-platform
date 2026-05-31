@@ -101,6 +101,7 @@ Examples:
   because Scala binary compatibility changes artifact coordinates and base
   images.
 - `spark4`: Spark 4.x with Scala 2.13.
+- `cloudera`: Cloudera Spark `3.3.2.3.3.7190.9-1` with Scala 2.12.15.
 
 Catalog ownership:
 
@@ -361,9 +362,12 @@ The catalog has four relevant sections.
 spark3 = "3.5.8"
 "spark3-scala213" = "3.5.8"
 spark4 = "4.0.1"
+cloudera = "3.3.2.3.3.7190.9-1"
 hadoopSpark3 = "3.4.2"
 hadoopSpark4 = "3.4.2"
+clouderaHadoop = "3.1.1.7.1.9.14-2"
 iceberg = "1.10.0"
+clouderaIceberg = "1.8.1"
 kafkaClients = "3.9.1"
 ```
 
@@ -400,6 +404,8 @@ spark4Kafka = { module = "org.apache.spark:spark-sql-kafka-0-10_2.13", version.r
 sparkKafkaClients = { module = "org.apache.kafka:kafka-clients", version.ref = "kafkaClients" }
 icebergAwsBundle = { module = "org.apache.iceberg:iceberg-aws-bundle", version.ref = "iceberg" }
 spark4HadoopAws = { module = "org.apache.hadoop:hadoop-aws", version.ref = "hadoopSpark4" }
+clouderaSparkSql = { module = "org.apache.spark:spark-sql_2.12", version.ref = "cloudera" }
+clouderaIcebergSparkRuntime = { module = "org.apache.iceberg:iceberg-spark-runtime-3.3_2.12", version.ref = "clouderaIceberg" }
 ```
 
 Naming guidance:
@@ -414,6 +420,11 @@ Naming guidance:
 - For addons that are Scala-agnostic, still add line-specific aliases when the
   version should follow the line baseline, for example `spark3HadoopAws` and
   `spark4HadoopAws`.
+- Vendor lines can have narrower bundle coverage than Apache lines. The
+  `cloudera` line currently tracks the dependency surface used by
+  `/data/Git/cloudera-hms/spark-tck`: Spark core/sql/hive, Scala 2.12.15,
+  SLF4J API 1.7.36, Iceberg Spark 3.3, Hadoop AWS, Hadoop GCS, and Iceberg AWS
+  bundle.
 
 Implications:
 

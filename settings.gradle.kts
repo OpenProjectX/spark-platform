@@ -26,6 +26,7 @@ dependencyResolutionManagement {
             maven(url = "https://maven.aliyun.com/repository/public/")
         }
 
+        maven(url = "https://repository.cloudera.com/repository/cloudera-repos/")
         mavenCentral()
         gradlePluginPortal()
     }

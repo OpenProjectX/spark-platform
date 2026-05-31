@@ -11,6 +11,7 @@ import java.io.File
 class SparkPlatformPluginFunctionalTest {
     private val spark3Version = "3.5.8"
     private val spark4Version = "4.0.1"
+    private val clouderaSparkVersion = "3.3.2.3.3.7190.9-1"
     private val kafkaClientsVersion = "3.9.1"
 
     @field:TempDir
@@ -188,6 +189,41 @@ class SparkPlatformPluginFunctionalTest {
         assertTrue(result.output.contains("constraint=org.apache.iceberg:iceberg-spark-runtime-4.0_2.13:1.10.0"))
         assertTrue(result.output.contains("constraint=org.apache.hadoop:hadoop-aws:3.4.2"))
         assertTrue(result.output.contains("constraint=org.apache.iceberg:iceberg-aws-bundle:1.10.0"))
+    }
+
+    @Test
+    fun `cloudera line manages the Spark TCK dependency surface`() {
+        writeFixture(
+            """
+            sparkPlatform {
+                line.set("cloudera")
+                variants.set(listOf("iceberg"))
+                addons.set(listOf("hadoopAws", "hadoopGcs", "icebergAws"))
+                managedConfigurations.set(listOf("testImplementation"))
+            }
+
+            dependencies {
+                add("testImplementation", "org.apache.spark:spark-sql_2.12")
+                add("testImplementation", "org.apache.iceberg:iceberg-spark-runtime-3.3_2.12")
+                add("testImplementation", "org.apache.hadoop:hadoop-aws")
+                add("testImplementation", "org.apache.iceberg:iceberg-aws-bundle")
+                add("testImplementation", "com.google.cloud.bigdataoss:gcs-connector")
+            }
+            """.trimIndent()
+        )
+
+        val result = gradleRunner("printSparkPlatform").build()
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":printSparkPlatform")?.outcome)
+        assertTrue(Regex("testImplementationExtends=.*sparkPlatform.*sparkPlatformBom").containsMatchIn(result.output))
+        assertTrue(result.output.contains("constraint=org.apache.spark:spark-sql_2.12:$clouderaSparkVersion"))
+        assertTrue(result.output.contains("constraint=org.apache.spark:spark-hive_2.12:$clouderaSparkVersion"))
+        assertTrue(result.output.contains("constraint=org.scala-lang:scala-library:2.12.15"))
+        assertTrue(result.output.contains("constraint=org.slf4j:slf4j-api:1.7.36"))
+        assertTrue(result.output.contains("constraint=org.apache.iceberg:iceberg-spark-runtime-3.3_2.12:1.8.1"))
+        assertTrue(result.output.contains("constraint=org.apache.hadoop:hadoop-aws:3.1.1.7.1.9.14-2"))
+        assertTrue(result.output.contains("constraint=org.apache.iceberg:iceberg-aws-bundle:1.8.1"))
+        assertTrue(result.output.contains("constraint=com.google.cloud.bigdataoss:gcs-connector:4.0.4"))
     }
 
     @Test
