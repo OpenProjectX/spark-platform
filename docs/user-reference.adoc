@@ -43,6 +43,18 @@ Platform image::
   variant and addon jars under `/opt/spark/jars` on top of the matching Apache
   Spark base image.
 
+Spark base image::
+  A project-owned image built by `spark-base-image`, published as
+  `ghcr.io/openprojectx/spark:<spark-version>-scala<scala>-...`. It owns the
+  Spark line runtime baseline: Spark, Scala, Hadoop, and line-managed runtime
+  jars such as Spark SQL Kafka.
+
+Application image::
+  A user application image built by Jib from the selected platform image. It
+  contains application classes and application-owned libraries. Platform-owned
+  Spark jars are provided by the parent image instead of being repackaged into
+  the application image.
+
 == Applying the Plugin
 
 [source,kotlin]
@@ -83,6 +95,12 @@ The plugin then adds the platform-owned dependencies from
 selected constraint bundles include Spark 4, Hadoop for Spark 4, and the Spark 4
 Iceberg runtime. Addons such as `hadoopAws` add platform-owned supplemental
 libraries without becoming Spark/Scala compatibility dimensions.
+
+Managed bundles are a Gradle constraint contract. They do not copy jars into an
+application image by themselves. A managed coordinate affects dependency
+resolution only when the application also declares that coordinate, either with
+`sparkPlatform(...)` or through a normal Gradle configuration listed in
+`managedConfigurations`.
 
 Application builds then opt into the platform-owned APIs they compile against by
 using the `sparkPlatform` configuration without versions:
@@ -135,6 +153,56 @@ dependencies {
 }
 ----
 
+=== Managed Versions Versus Packaging Scope
+
+Managed versions and packaging scope are separate concerns.
+
+Any configuration listed in `managedConfigurations` extends `sparkPlatform`, so
+dependencies declared there can omit versions when the coordinate is managed by
+the selected line, variant, or addon. For example, this is valid:
+
+[source,kotlin]
+----
+sparkPlatform {
+    line.set("spark4")
+    variants.set(listOf("iceberg"))
+    managedConfigurations.set(listOf("api", "testImplementation"))
+}
+
+dependencies {
+    api("org.apache.spark:spark-sql_2.13")
+    testImplementation("org.apache.iceberg:iceberg-spark-runtime-4.0_2.13")
+}
+----
+
+`sparkPlatform(...)` is the plugin's dedicated provided-platform scope. It has
+two jobs:
+
+* it declares that the application compiles against that platform-owned API
+* it lets the platform constraint choose the version
+
+Normal Gradle scopes keep their normal packaging behavior. If `implementation`
+is listed in `managedConfigurations`, then an `implementation(...)` dependency
+can omit its version and will still be packaged into the application runtime
+classpath by Gradle/Jib.
+
+That is useful for application-owned libraries whose versions are intentionally
+managed by the platform. It should not be the default for Spark-owned runtime
+jars. For Spark, Hadoop, variants, and addons, use `sparkPlatform(...)` unless
+you are deliberately packaging that jar into the application image and accepting
+the duplicate-classpath risk.
+
+Class-not-found behavior follows the same rule:
+
+* If the app declares `sparkPlatform("org.apache.spark:spark-sql-kafka-0-10_2.13")`
+  on `spark4`, the app image expects the Spark base image to provide that jar.
+* If the app declares an Iceberg API with `sparkPlatform(...)`, the app must
+  select `variants.set(listOf("iceberg"))` and run on a platform image built
+  with Iceberg.
+* If the selected image does not contain the matching platform-owned jar, the
+  app will fail at runtime. That is an image/platform mismatch, not something
+  the user should fix by adding a versioned `implementation` dependency.
+
 == Local Versus Official Builds
 
 For local builds, `sparkPlatform` and `sparkPlatformBom` extend
@@ -161,6 +229,16 @@ Managed `JavaExec` tasks also receive a resolvable
 tests runnable in CI without changing application image packaging: the
 application image still treats platform-owned dependencies as provided by the
 platform base image.
+
+Packaging behavior:
+
+* Local JVM runs: selected `sparkPlatform(...)` dependencies are available on
+  the local runtime classpath so the app can run from Gradle or an IDE.
+* Official application images: selected `sparkPlatform(...)` dependencies are
+  treated as provided and are not packaged into the application image.
+* Platform-owned runtime jars are packaged in the Spark base image or platform
+  image layers, depending on whether they are line baseline content or selected
+  variants/addons.
 
 Official mode is enabled when any of these are true:
 
@@ -329,6 +407,10 @@ Optional addon families currently represented in the catalog:
 * Hadoop AWS `3.4.2`
 * Hadoop GCS connector `4.0.4`
 
+Spark SQL Kafka `spark-sql-kafka-0-10` is part of the line-managed Spark
+baseline. Its version follows the selected Spark line and the clean Spark base
+runtime image provides the matching jar.
+
 == Version Catalog Bundle Names
 
 The plugin and platform modules derive bundle names from the Spark line and
@@ -390,6 +472,70 @@ should not need it.
 The plugin and BOM publish strict dependency constraints from the version
 catalog. This keeps transitive dependencies from moving a Spark line away from
 the selected platform version.
+
+Bundle scope summary:
+
+[cols="1,1,1,1", options="header"]
+|===
+| Bundle | Gradle compile/runtime effect | Image packaging effect | Use for
+
+| `spark-platform-<line>-managed`
+| Adds strict constraints for the selected Spark line. It does not declare app
+dependencies by itself.
+| No direct packaging. Matching jars belong in the Spark base image through
+`spark-base-<line>-runtime`.
+| Spark, Scala, Hadoop, and line-managed Spark modules such as Spark SQL Kafka.
+
+| `spark-platform-<line>-variant-<variant>`
+| Adds strict constraints when the variant is selected.
+| `platform-image` resolves and layers selected variant jars into
+`/opt/spark/jars`.
+| Optional Spark-compatible runtime families such as Iceberg, Hudi, Paimon, and
+OpenLineage.
+
+| `spark-platform-<line>-addon-<addon>`
+| Adds strict constraints when the addon is selected.
+| `platform-image` resolves and layers selected addon jars into
+`/opt/spark/jars`.
+| Optional reusable support packs such as Hadoop AWS or Hadoop GCS.
+
+| `spark-base-<line>-runtime`
+| Not consumed by application builds.
+| `spark-base-image` resolves and layers the clean Spark line runtime jars into
+the Spark base image.
+| The base Spark runtime image contents.
+|===
+
+== Image Layers
+
+Spark Platform uses three runtime image layers for normal application delivery:
+
+[cols="1,1,1", options="header"]
+|===
+| Layer | Built by | Contains
+
+| Spark base image
+| `spark-base-image`
+| `/opt/spark` layout plus Gradle-managed Spark line runtime jars: Spark, Scala,
+Hadoop, Spark SQL Kafka, Kubernetes/YARN/MLlib/REPL modules, and related
+baseline transitive jars.
+
+| Platform image
+| `platform-image`
+| Starts from the Spark base image and adds selected variant/addon jars under
+`/opt/spark/jars`, for example Iceberg, Hudi, Paimon, OpenLineage, Hadoop AWS,
+or Hadoop GCS.
+
+| Application image
+| user project with the Spark Platform plugin and Jib
+| Starts from the selected platform image and adds only application classes,
+resources, and application-owned libraries. Spark Platform-owned jars are
+provided by the lower layers.
+|===
+
+The internal layout image used by `spark-base-image` is a build input only. It
+contains the Spark distribution layout with Spark jars stripped in the same
+Docker layer, then the runtime base image adds catalog-managed jars with Jib.
 
 == Platform Image
 

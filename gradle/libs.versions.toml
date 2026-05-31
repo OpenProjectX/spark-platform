@@ -45,6 +45,7 @@ spark3Iceberg = { module = "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12", 
 spark3Hudi = { module = "org.apache.hudi:hudi-spark3.5-bundle_2.12", version.ref = "hudi" }
 spark3Paimon = { module = "org.apache.paimon:paimon-spark-3.5_2.12", version.ref = "paimon" }
 spark3Openlineage = { module = "io.openlineage:openlineage-spark_2.12", version.ref = "openlineage" }
+spark3Kafka = { module = "org.apache.spark:spark-sql-kafka-0-10_2.12", version.ref = "spark3" }
 spark3Scala213Core = { module = "org.apache.spark:spark-core_2.13", version.ref = "spark3-scala213" }
 spark3Scala213Sql = { module = "org.apache.spark:spark-sql_2.13", version.ref = "spark3-scala213" }
 spark3Scala213Hive = { module = "org.apache.spark:spark-hive_2.13", version.ref = "spark3-scala213" }
@@ -56,6 +57,7 @@ spark3Scala213Graphx = { module = "org.apache.spark:spark-graphx_2.13", version.
 spark3Scala213Repl = { module = "org.apache.spark:spark-repl_2.13", version.ref = "spark3-scala213" }
 spark3Scala213Iceberg = { module = "org.apache.iceberg:iceberg-spark-runtime-3.5_2.13", version.ref = "iceberg" }
 spark3Scala213Openlineage = { module = "io.openlineage:openlineage-spark_2.13", version.ref = "openlineage" }
+spark3Scala213Kafka = { module = "org.apache.spark:spark-sql-kafka-0-10_2.13", version.ref = "spark3-scala213" }
 
 spark4Core = { module = "org.apache.spark:spark-core_2.13", version.ref = "spark4" }
 spark4Sql = { module = "org.apache.spark:spark-sql_2.13", version.ref = "spark4" }
@@ -72,6 +74,7 @@ spark4Iceberg = { module = "org.apache.iceberg:iceberg-spark-runtime-4.0_2.13", 
 spark4Hudi = { module = "org.apache.hudi:hudi-spark4.0-bundle_2.13", version.ref = "hudi" }
 spark4Paimon = { module = "org.apache.paimon:paimon-spark-4.0_2.13", version.ref = "paimon" }
 spark4Openlineage = { module = "io.openlineage:openlineage-spark_2.13", version.ref = "openlineage" }
+spark4Kafka = { module = "org.apache.spark:spark-sql-kafka-0-10_2.13", version.ref = "spark4" }
 
 spark3HadoopAws = { module = "org.apache.hadoop:hadoop-aws", version.ref = "hadoopSpark3" }
 spark4HadoopAws = { module = "org.apache.hadoop:hadoop-aws", version.ref = "hadoopSpark4" }
@@ -88,6 +91,7 @@ spark-platform-spark3-managed = [
     "spark3Core",
     "spark3Sql",
     "spark3Hive",
+    "spark3Kafka",
     "spark3HadoopClientApi",
     "spark3HadoopClientRuntime",
 ]
@@ -99,6 +103,7 @@ spark-base-spark3-runtime = [
     "spark3Core",
     "spark3Sql",
     "spark3Hive",
+    "spark3Kafka",
     "spark3HiveThriftserver",
     "spark3Yarn",
     "spark3Kubernetes",
@@ -113,6 +118,7 @@ spark-platform-spark3-scala213-managed = [
     "spark3Scala213Core",
     "spark3Scala213Sql",
     "spark3Scala213Hive",
+    "spark3Scala213Kafka",
     "spark3HadoopClientApi",
     "spark3HadoopClientRuntime",
 ]
@@ -122,6 +128,7 @@ spark-base-spark3-scala213-runtime = [
     "spark3Scala213Core",
     "spark3Scala213Sql",
     "spark3Scala213Hive",
+    "spark3Scala213Kafka",
     "spark3Scala213HiveThriftserver",
     "spark3Scala213Yarn",
     "spark3Scala213Kubernetes",
@@ -136,6 +143,7 @@ spark-platform-spark4-managed = [
     "spark4Core",
     "spark4Sql",
     "spark4Hive",
+    "spark4Kafka",
     "spark4HadoopClientApi",
     "spark4HadoopClientRuntime",
 ]
@@ -147,6 +155,7 @@ spark-base-spark4-runtime = [
     "spark4Core",
     "spark4Sql",
     "spark4Hive",
+    "spark4Kafka",
     "spark4HiveThriftserver",
     "spark4Yarn",
     "spark4Kubernetes",

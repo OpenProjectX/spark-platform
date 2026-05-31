@@ -22,6 +22,25 @@ classpath in CI, so tests do not depend on whatever happened to be installed on
 a developer machine. Application builds should manage only their own classes,
 application-specific libraries, and the platform APIs they actually use.
 
+`managed` is a Gradle resolution contract: it adds strict constraints, but it
+does not package jars into the user application image by itself. Runtime jars
+are owned by image layers:
+
+| Layer | Contains |
+| --- | --- |
+| Spark base image | Spark, Scala, Hadoop, and line-managed runtime jars such as Spark SQL Kafka. |
+| Platform image | Selected variant/addon jars such as Iceberg, Hudi, Paimon, OpenLineage, Hadoop AWS, and Hadoop GCS. |
+| Application image | User classes, resources, and application-owned libraries. |
+
+Any scope listed in `managedConfigurations` can use managed dependencies without
+versions, including `api`, `implementation`, and `testImplementation`.
+Packaging still follows that scope: `implementation(...)` is packaged into the
+app image, while `sparkPlatform(...)` is the provided-platform scope. A
+production `ClassNotFoundException` for a Spark/Hadoop/variant class means the
+selected base/platform image is missing that platform-owned jar; the fix is to
+update the platform image contract, not to package another Spark jar inside the
+app image.
+
 ## Quick Start
 
 Apply the plugin and select the platform contract:

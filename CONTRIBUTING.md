@@ -196,6 +196,62 @@ The profile controls the default application base image tag, for example
 `spark4-lakehouse-<platformVersion>`. The variants/addons still control
 compile/runtime constraints and local JVM smoke runs.
 
+### Scope And Packaging
+
+`managed` means Gradle dependency constraints. It does not mean "package this
+jar into the user application image." A managed bundle constrains versions for
+coordinates that the user declares with `sparkPlatform(...)`, or for normal
+Gradle configurations listed in `managedConfigurations`.
+
+Packaging still follows the configuration where the dependency is declared. If
+`implementation` is listed in `managedConfigurations`, then
+`implementation("group:name")` can omit the version and still packages that
+dependency like any other implementation dependency. That is appropriate for
+application-owned libraries whose versions the platform intentionally manages.
+It is not the default contract for Spark-owned runtime jars.
+
+| Concept | Gradle scope | Runtime packaging scope |
+| --- | --- | --- |
+| `spark-platform-<line>-managed` | Strict constraints for the selected Spark line. No dependency is added unless the app declares a matching coordinate. | No direct packaging. Matching baseline jars are packaged by `spark-base-<line>-runtime` in the Spark base image. |
+| `spark-base-<line>-runtime` | Not consumed by application builds. | Builds the clean Spark base image runtime jar set: Spark, Scala, Hadoop, Spark SQL Kafka, Kubernetes/YARN/MLlib/REPL modules, and baseline transitives. |
+| `spark-platform-<line>-variant-<variant>` | Strict constraints when the variant is selected. | Selected variant jars are layered by `platform-image` into `/opt/spark/jars`. |
+| `spark-platform-<line>-addon-<addon>` | Strict constraints when the addon is selected. | Selected addon jars are layered by `platform-image` into `/opt/spark/jars`. |
+| `profile` | Selects a curated platform image tag. It does not replace `variants` or `addons` for compile intent. | Chooses a curated platform image combination, such as `spark4-lakehouse-<version>`. |
+
+Application image packaging follows the same boundary:
+
+- Local JVM runs use platform dependencies on the runtime classpath so examples,
+  tests, and IDE runs work without a preinstalled Spark distribution.
+- Official application images treat platform-owned dependencies as provided by
+  the image layers. The app image should contain user classes, resources, and
+  application-owned libraries, not Spark/Hadoop/variant jars copied again.
+- `sparkPlatformJavaExecRuntime` exists for smoke tests in official mode; it is
+  a test/runtime convenience and does not change application image packaging.
+
+Do not fix a production `ClassNotFoundException` for Spark/Hadoop/variant
+classes by moving the dependency to `implementation`. That makes the app image
+carry a second copy of platform runtime jars, even if the version is still
+managed. Fix the selected platform contract instead: add the coordinate to the
+right managed bundle, add line baseline jars to `spark-base-<line>-runtime`,
+add optional content to the matching variant or addon bundle, and make sure the
+app selects a platform image containing that bundle.
+
+### Image Layers
+
+There are three runtime image layers in the delivery model:
+
+| Layer | Built by | Contents | Change cadence |
+| --- | --- | --- | --- |
+| Spark base image | `spark-base-image` | `/opt/spark` plus Gradle-managed Spark line jars from `spark-base-<line>-runtime`: Spark, Scala, Hadoop, Spark SQL Kafka, Kubernetes/YARN/MLlib/REPL modules, and baseline transitives. | Spark/Hadoop/Scala line upgrades and CVE/runtime baseline fixes. |
+| Platform image | `platform-image` | Starts from the Spark base image and adds selected variant/addon jars under `/opt/spark/jars`. | Platform release when supported variants/addons/profiles change. |
+| Application image | User project with the plugin and Jib | Starts from the selected platform image and adds user classes, resources, and application-owned libraries. | Application release. |
+
+`spark-base-image` also has an internal layout image. The layout image downloads
+and verifies the Apache Spark distribution, installs Python/R where needed, and
+strips `/opt/spark/jars` in the same Docker layer. Runtime base images then add
+the Gradle-managed jar set with Jib. Layout images are build inputs, not the
+runtime contract for user apps.
+
 ### Selection Rules
 
 Use this decision table when adding a new dependency family:
@@ -214,6 +270,9 @@ Practical examples:
   changes core Spark artifact coordinates and base image identity.
 - Iceberg is a variant because its runtime artifact is Spark-version and
   Scala-version specific.
+- Spark SQL Kafka is line-managed baseline content because it is a Spark-owned
+  module whose version follows the selected Spark line and whose jar should be
+  present in the clean Spark runtime image.
 - Hadoop AWS is an addon because S3 support is useful across many table-format
   variants and is not a Spark integration family by itself.
 - `lakehouse` is a profile because it is a curated release image name that
@@ -279,6 +338,7 @@ keys.
 [libraries]
 spark4Sql = { module = "org.apache.spark:spark-sql_2.13", version.ref = "spark4" }
 spark4Iceberg = { module = "org.apache.iceberg:iceberg-spark-runtime-4.0_2.13", version.ref = "iceberg" }
+spark4Kafka = { module = "org.apache.spark:spark-sql-kafka-0-10_2.13", version.ref = "spark4" }
 spark4HadoopAws = { module = "org.apache.hadoop:hadoop-aws", version.ref = "hadoopSpark4" }
 ```
 
@@ -326,6 +386,7 @@ spark-platform-spark4-managed = [
     "spark4Core",
     "spark4Sql",
     "spark4Hive",
+    "spark4Kafka",
     "spark4HadoopClientApi",
     "spark4HadoopClientRuntime",
 ]
@@ -335,6 +396,7 @@ spark-base-spark4-runtime = [
     "spark4Core",
     "spark4Sql",
     "spark4Hive",
+    "spark4Kafka",
     "spark4HiveThriftserver",
     "spark4Yarn",
     "spark4Kubernetes",
@@ -418,6 +480,45 @@ For a Spark runtime base image build:
 When adding a dependency, update this file first. Update
 `gradle/spark-platform-image.toml` only when that dependency should affect image
 defaults, curated profiles, transitive excludes, or capability resolution.
+
+### Example: Adding Spark SQL Kafka
+
+`spark-sql-kafka-0-10` is modeled as line-managed baseline content, not as a
+variant or addon. It is a Spark-owned module, its version follows the selected
+Spark line, and the runtime image should provide the matching jar by default.
+
+```toml
+[libraries]
+spark3Kafka = { module = "org.apache.spark:spark-sql-kafka-0-10_2.12", version.ref = "spark3" }
+spark3Scala213Kafka = { module = "org.apache.spark:spark-sql-kafka-0-10_2.13", version.ref = "spark3-scala213" }
+spark4Kafka = { module = "org.apache.spark:spark-sql-kafka-0-10_2.13", version.ref = "spark4" }
+
+[bundles]
+spark-platform-spark3-managed = ["spark3Core", "spark3Sql", "spark3Hive", "spark3Kafka", "..."]
+spark-platform-spark3-scala213-managed = ["spark3Scala213Core", "spark3Scala213Sql", "spark3Scala213Hive", "spark3Scala213Kafka", "..."]
+spark-platform-spark4-managed = ["spark4Core", "spark4Sql", "spark4Hive", "spark4Kafka", "..."]
+
+spark-base-spark3-runtime = ["spark3Core", "spark3Sql", "spark3Hive", "spark3Kafka", "..."]
+spark-base-spark3-scala213-runtime = ["spark3Scala213Core", "spark3Scala213Sql", "spark3Scala213Hive", "spark3Scala213Kafka", "..."]
+spark-base-spark4-runtime = ["spark4Core", "spark4Sql", "spark4Hive", "spark4Kafka", "..."]
+```
+
+Users still opt into the Kafka API explicitly and without versions:
+
+```kotlin
+sparkPlatform {
+    line.set("spark4")
+}
+
+dependencies {
+    sparkPlatform("org.apache.spark:spark-sql_2.13")
+    sparkPlatform("org.apache.spark:spark-sql-kafka-0-10_2.13")
+}
+```
+
+That application gets strict constraints for Spark SQL and Spark SQL Kafka from
+the packaged platform catalog, while Spark base runtime images get the matching
+Kafka jar from the `spark-base-<line>-runtime` bundle.
 
 ## Platform Image Configuration
 

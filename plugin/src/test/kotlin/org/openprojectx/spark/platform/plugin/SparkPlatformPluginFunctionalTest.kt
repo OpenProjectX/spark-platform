@@ -151,6 +151,23 @@ class SparkPlatformPluginFunctionalTest {
     }
 
     @Test
+    fun `spark sql kafka is managed by the selected Spark line and Scala binary version`() {
+        writeFixture(
+            """
+            sparkPlatform {
+                line.set("spark4")
+            }
+            """.trimIndent()
+        )
+
+        val result = gradleRunner("printSparkPlatform").build()
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":printSparkPlatform")?.outcome)
+        assertTrue(result.output.contains("constraint=org.apache.spark:spark-sql_2.13:$spark4Version"))
+        assertTrue(result.output.contains("constraint=org.apache.spark:spark-sql-kafka-0-10_2.13:$spark4Version"))
+    }
+
+    @Test
     fun `addons contribute constraints without being modeled as variants`() {
         writeFixture(
             """
