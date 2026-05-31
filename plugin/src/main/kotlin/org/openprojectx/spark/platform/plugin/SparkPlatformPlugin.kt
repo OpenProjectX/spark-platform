@@ -49,6 +49,11 @@ class SparkPlatformPlugin : Plugin<Project> {
         })
         extension.variants.convention(emptyList())
         extension.addons.convention(emptyList())
+        extension.managedConfigurations.convention(
+            project.providers.gradleProperty("sparkPlatform.managedConfigurations")
+                .map { value -> value.split(",").map(String::trim).filter(String::isNotEmpty).distinct() }
+                .orElse(project.provider { defaultManagedConfigurations(extension) })
+        )
 
         configureKnownCapabilityResolutions(project)
 
@@ -91,13 +96,9 @@ class SparkPlatformPlugin : Plugin<Project> {
         bom: Configuration
     ) {
         project.afterEvaluate {
-            val targetConfiguration = if (extension.officialBuild.get()) {
-                JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME
-            } else {
-                JavaPlugin.IMPLEMENTATION_CONFIGURATION_NAME
+            extension.managedConfigurations.get().forEach { targetConfiguration ->
+                project.configurations.named(targetConfiguration).configure { it.extendsFrom(managed, bom) }
             }
-
-            project.configurations.named(targetConfiguration).configure { it.extendsFrom(managed, bom) }
 
             val catalog = project.versionCatalog()
             val selectedBundles = catalog.managedBundles(extension.line.get(), extension.variants.get(), extension.addons.get())
@@ -113,6 +114,14 @@ class SparkPlatformPlugin : Plugin<Project> {
                     }
                 }
             }
+        }
+    }
+
+    private fun defaultManagedConfigurations(extension: SparkPlatformExtension): List<String> {
+        return if (extension.officialBuild.get()) {
+            listOf(JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME)
+        } else {
+            listOf(JavaPlugin.IMPLEMENTATION_CONFIGURATION_NAME)
         }
     }
 

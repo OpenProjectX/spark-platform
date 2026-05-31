@@ -13,4 +13,5 @@ abstract class SparkPlatformExtension {
     abstract val imageTag: Property<String>
     abstract val variants: ListProperty<String>
     abstract val addons: ListProperty<String>
+    abstract val managedConfigurations: ListProperty<String>
 }

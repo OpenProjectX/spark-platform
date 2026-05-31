@@ -40,6 +40,35 @@ class SparkPlatformPluginFunctionalTest {
     }
 
     @Test
+    fun `sparkPlatform constraints can target api and test scopes`() {
+        writeFixture(
+            """
+            plugins.apply("java-library")
+
+            sparkPlatform {
+                line.set("spark4")
+                variants.set(listOf("iceberg"))
+                managedConfigurations.set(listOf("api", "testImplementation"))
+            }
+
+            dependencies {
+                add("api", "org.apache.spark:spark-sql_2.13")
+                add("testImplementation", "org.apache.iceberg:iceberg-spark-runtime-4.0_2.13")
+            }
+            """.trimIndent()
+        )
+
+        val result = gradleRunner("printSparkPlatform").build()
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":printSparkPlatform")?.outcome)
+        assertTrue(result.output.contains("implementationExtends="))
+        assertTrue(result.output.contains("apiExtends=sparkPlatform,sparkPlatformBom"))
+        assertTrue(Regex("testImplementationExtends=.*sparkPlatform.*sparkPlatformBom").containsMatchIn(result.output))
+        assertTrue(result.output.contains("constraint=org.apache.spark:spark-sql_2.13:$spark4Version"))
+        assertTrue(result.output.contains("constraint=org.apache.iceberg:iceberg-spark-runtime-4.0_2.13:1.10.0"))
+    }
+
+    @Test
     fun `users opt into platform dependencies without versions`() {
         writeFixture(
             """
@@ -289,10 +318,12 @@ class SparkPlatformPluginFunctionalTest {
 
             tasks.register("printSparkPlatform") {
                 doLast {
-                    val implementationExtends = configurations.getByName("implementation").extendsFrom.joinToString(",") { it.name }
-                    val compileOnlyExtends = configurations.getByName("compileOnly").extendsFrom.joinToString(",") { it.name }
-                    println("implementationExtends=${'$'}implementationExtends")
-                    println("compileOnlyExtends=${'$'}compileOnlyExtends")
+                    listOf("implementation", "compileOnly", "api", "testImplementation", "testCompileOnly", "testRuntimeOnly")
+                        .mapNotNull { name -> configurations.findByName(name)?.let { name to it } }
+                        .forEach { (name, configuration) ->
+                            val extends = configuration.extendsFrom.joinToString(",") { it.name }
+                            println("${'$'}{name}Extends=${'$'}extends")
+                        }
                     val sparkPlatformDependencies = configurations.getByName("sparkPlatform").dependencies
                     println("dependencyCount=${'$'}{sparkPlatformDependencies.size}")
                     sparkPlatformDependencies.forEach {

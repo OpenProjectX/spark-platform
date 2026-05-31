@@ -45,6 +45,22 @@ dependencies {
 }
 ```
 
+For BOM-style use on a normal Gradle scope, target that scope and keep the
+dependency versionless:
+
+```kotlin
+sparkPlatform {
+    line.set("spark4")
+    variants.set(listOf("iceberg"))
+    managedConfigurations.set(listOf("api", "testImplementation"))
+}
+
+dependencies {
+    api("org.apache.spark:spark-sql_2.13")
+    testImplementation("org.apache.iceberg:iceberg-spark-runtime-4.0_2.13")
+}
+```
+
 See the standalone `examples` Gradle build for runnable applications.
 
 ```bash

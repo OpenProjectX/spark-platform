@@ -74,6 +74,7 @@ sparkPlatform {
     line.set("spark4")
     variants.set(listOf("iceberg"))
     addons.set(listOf("hadoopAws"))
+    managedConfigurations.set(listOf("api", "testImplementation"))
 }
 ----
 
@@ -91,6 +92,29 @@ using the `sparkPlatform` configuration without versions:
 dependencies {
     sparkPlatform("org.apache.spark:spark-sql_2.13")
     sparkPlatform("org.apache.iceberg:iceberg-spark-runtime-4.0_2.13")
+}
+----
+
+When the platform should behave like a BOM for a normal Gradle scope, point
+`managedConfigurations` at that scope and use normal versionless dependencies
+there:
+
+[source,kotlin]
+----
+plugins {
+    `java-library`
+    id("org.openprojectx.spark.platform")
+}
+
+sparkPlatform {
+    line.set("spark4")
+    variants.set(listOf("iceberg"))
+    managedConfigurations.set(listOf("api", "testImplementation"))
+}
+
+dependencies {
+    api("org.apache.spark:spark-sql_2.13")
+    testImplementation("org.apache.iceberg:iceberg-spark-runtime-4.0_2.13")
 }
 ----
 
@@ -156,6 +180,7 @@ sparkPlatform {
     profile.set("lakehouse")
     variants.set(listOf("iceberg"))
     addons.set(listOf("hadoopAws"))
+    managedConfigurations.set(listOf("implementation"))
     platformVersion.set("0.1.1-SNAPSHOT")
     platformImage.set("ghcr.io/openprojectx/spark-platform")
     localPlatformImage.set(false)
@@ -196,6 +221,12 @@ becomes `hadoopaws`.
 | Chooses whether user-selected `sparkPlatform` dependencies are exposed through
 `implementation` or `compileOnly`.
 
+| `managedConfigurations`
+| `implementation` locally, `compileOnly` for official builds
+| Configurations that extend `sparkPlatform` and `sparkPlatformBom`. Set this
+when using Spark Platform like a BOM for scopes such as `api`,
+`testImplementation`, or `testCompileOnly`.
+
 | `localPlatformImage`
 | `true` only for direct `jibDockerBuild`, otherwise `false`
 | When enabled, Jib reads the selected platform base image from the local Docker
@@ -224,6 +255,10 @@ release tags normally use a profile name instead of listing every addon.
 
 | `sparkPlatform.line`
 | Default Spark line for plugin and platform image builds.
+
+| `sparkPlatform.managedConfigurations`
+| Comma-separated Gradle configurations that should receive Spark Platform
+constraints, for example `api,testImplementation`.
 
 | `sparkPlatform.officialBuild`
 | Forces official mode when set to `true`.
