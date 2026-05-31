@@ -634,10 +634,16 @@ The application image base is:
 <sparkPlatform.platformImage>:<sparkPlatform.imageTag>
 ----
 
-Application image entrypoints include Spark Platform's managed JVM module
-options and add `/opt/spark/jars/*` to Jib's extra classpath. Application
-projects do not need to repeat Spark, Hadoop, Scala, variant, or addon jars in
-their own image; the platform base image owns those runtime artifacts.
+Application images follow Spark's Kubernetes image contract. The plugin keeps
+the Spark entrypoint as `/opt/entrypoint.sh`, stages the user application jar at
+`/opt/spark/app/app.jar`, and exposes the app classes, app libraries, and
+platform jars through Spark classpath environment variables. Use
+`local:///opt/spark/app/app.jar` as the application resource in Spark Operator
+`SparkApplication.spec.jars`.
+
+Application projects do not need to repeat Spark, Hadoop, Scala, variant, or
+addon jars in their own image; the platform base image owns those runtime
+artifacts.
 
 For `jibDockerBuild`, the plugin prefixes the base image with `docker://` so
 the local Docker daemon is used and Jib does not require the platform base image
@@ -656,6 +662,24 @@ The default application image target is:
 [source,text]
 ----
 <project.group>/<project.name>:<project.version>
+----
+
+A Spark Operator application uses that image as the Spark container image:
+
+[source,yaml]
+----
+apiVersion: spark.apache.org/v1
+kind: SparkApplication
+metadata:
+  name: spark4-iceberg
+spec:
+  mainClass: "org.openprojectx.spark.platform.examples.spark4.Spark4IcebergExample"
+  jars: "local:///opt/spark/app/app.jar"
+  sparkConf:
+    spark.kubernetes.container.image: "org.openprojectx.spark.platform.examples/spark4-iceberg:0.1.1-snapshot"
+    spark.kubernetes.authenticate.driver.serviceAccountName: "spark"
+  runtimeVersions:
+    sparkVersion: "4.0.1"
 ----
 
 == Spark 4 Iceberg Example

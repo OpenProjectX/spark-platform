@@ -209,6 +209,11 @@ class SparkPlatformPluginFunctionalTest {
         assertTrue(result.output.contains("fromImage=docker://registry.example.com/spark-platform:spark4-iceberg-hadoopaws-1.2.3"))
         assertTrue(result.output.contains("jibJvmFlag=--add-opens=java.base/java.nio=ALL-UNNAMED"))
         assertTrue(result.output.contains("jibExtraClasspath=/opt/spark/jars/*"))
+        assertTrue(result.output.contains("jibContainerizingMode=packaged"))
+        assertTrue(result.output.contains("jibEntrypoint=/opt/entrypoint.sh"))
+        assertTrue(result.output.contains("jibAppRoot=/opt/spark/app"))
+        assertTrue(result.output.contains("jibEnv=SPARK_EXTRA_CLASSPATH=/opt/spark/app/resources:/opt/spark/app/classes:/opt/spark/app/libs/*:/opt/spark/jars/*"))
+        assertTrue(result.output.contains("jibEnv=SPARK_SUBMIT_OPTS=--add-opens=java.base/java.lang=ALL-UNNAMED"))
     }
 
     @Test
@@ -341,7 +346,15 @@ class SparkPlatformPluginFunctionalTest {
                     val from = jib.javaClass.methods.first { it.name == "getFrom" && it.parameterCount == 0 }.invoke(jib)
                     val image = from.javaClass.methods.first { it.name == "getImage" && it.parameterCount == 0 }.invoke(from)
                     println("fromImage=${'$'}image")
+                    val containerizingMode = jib.javaClass.methods.first { it.name == "getContainerizingMode" && it.parameterCount == 0 }.invoke(jib)
+                    println("jibContainerizingMode=${'$'}containerizingMode")
                     val container = jib.javaClass.methods.first { it.name == "getContainer" && it.parameterCount == 0 }.invoke(jib)
+                    val entrypoint = container.javaClass.methods.first { it.name == "getEntrypoint" && it.parameterCount == 0 }.invoke(container) as List<*>
+                    entrypoint.forEach { println("jibEntrypoint=${'$'}it") }
+                    val appRoot = container.javaClass.methods.first { it.name == "getAppRoot" && it.parameterCount == 0 }.invoke(container)
+                    println("jibAppRoot=${'$'}appRoot")
+                    val environment = container.javaClass.methods.first { it.name == "getEnvironment" && it.parameterCount == 0 }.invoke(container) as Map<*, *>
+                    environment.entries.sortedBy { it.key.toString() }.forEach { (key, value) -> println("jibEnv=${'$'}key=${'$'}value") }
                     val jvmFlags = container.javaClass.methods.first { it.name == "getJvmFlags" && it.parameterCount == 0 }.invoke(container) as List<*>
                     jvmFlags.forEach { println("jibJvmFlag=${'$'}it") }
                     val extraClasspath = container.javaClass.methods.first { it.name == "getExtraClasspath" && it.parameterCount == 0 }.invoke(container) as List<*>

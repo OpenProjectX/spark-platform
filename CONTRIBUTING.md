@@ -54,7 +54,13 @@ cd examples
 env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4-iceberg:jibDockerBuild --no-configuration-cache
 
 docker run --rm \
-  org.openprojectx.spark.platform.examples/spark4-iceberg:0.1.1-snapshot
+  -e SPARK_DRIVER_BIND_ADDRESS=0.0.0.0 \
+  org.openprojectx.spark.platform.examples/spark4-iceberg:0.1.1-snapshot \
+  driver \
+  --master 'local[*]' \
+  --conf spark.driver.host=127.0.0.1 \
+  --class org.openprojectx.spark.platform.examples.spark4.Spark4IcebergExample \
+  local:///opt/spark/app/app.jar
 ```
 
 The `ghcr.io/openprojectx/spark-platform:<tag>` images are platform/runtime
@@ -63,6 +69,9 @@ base images. They contain Spark and platform-managed jars under
 example application images are built from the standalone `examples/` Gradle
 build and use the lowercased Gradle group, project name, and version:
 `org.openprojectx.spark.platform.examples/<example-project>:<version>`.
+Application images keep Spark's official `/opt/entrypoint.sh` contract and
+stage the user jar at `local:///opt/spark/app/app.jar`, which is the path to use
+from Spark Operator `SparkApplication.spec.jars`.
 
 Run the Spark 3 + Paimon example:
 

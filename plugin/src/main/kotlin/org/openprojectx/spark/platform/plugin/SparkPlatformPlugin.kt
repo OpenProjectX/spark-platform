@@ -10,8 +10,10 @@ import org.gradle.api.artifacts.MinimalExternalModuleDependency
 import org.gradle.api.artifacts.VersionCatalog
 import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.JavaExec
 import org.gradle.api.plugins.JavaPlugin
+import org.gradle.jvm.tasks.Jar
 import org.openprojectx.spark.platform.core.ModuleCoordinate
 import org.openprojectx.spark.platform.core.SparkPlatformCapabilityResolutions
 import org.openprojectx.spark.platform.core.SparkPlatformCatalog
@@ -152,12 +154,36 @@ class SparkPlatformPlugin : Plugin<Project> {
         val image = platformBaseImageReference(project, extension)
         val toImage = "${project.group}/${project.name}:${project.version}".lowercase()
         val jvmFlags = managedJvmOptions(extension)
+        val operatorAppDir = project.layout.buildDirectory.dir("spark-platform/operator-app")
+        val operatorAppJar = project.tasks.register("sparkPlatformOperatorAppJar", Copy::class.java) { task ->
+            task.description = "Stages the application jar at the Spark Operator local:// path."
+            task.dependsOn(project.tasks.named(JavaPlugin.JAR_TASK_NAME))
+            task.from(project.tasks.named(JavaPlugin.JAR_TASK_NAME, Jar::class.java).flatMap { it.archiveFile })
+            task.rename { SPARK_OPERATOR_APP_JAR_NAME }
+            task.into(operatorAppDir)
+        }
 
         jib.from { it.setImage(image) }
         jib.to { it.setImage(toImage) }
+        jib.setContainerizingMode("packaged")
+        jib.extraDirectories {
+            it.paths { paths ->
+                paths.path { path ->
+                    path.setFrom(operatorAppDir)
+                    path.setInto(SPARK_OPERATOR_APP_DIR)
+                }
+            }
+        }
         jib.container {
+            it.setAppRoot(SPARK_OPERATOR_APP_DIR)
+            it.setEntrypoint(listOf(SPARK_ENTRYPOINT))
             it.setJvmFlags((jvmFlags + it.jvmFlags).distinct())
             it.setExtraClasspath((listOf(PLATFORM_JARS_CLASSPATH) + it.extraClasspath).distinct())
+            it.setEnvironment(operatorEnvironment(jvmFlags) + it.environment)
+        }
+
+        project.tasks.matching { it.name in JIB_IMAGE_TASKS }.configureEach {
+            it.dependsOn(operatorAppJar)
         }
     }
 
@@ -189,6 +215,18 @@ class SparkPlatformPlugin : Plugin<Project> {
 
     private fun managedJvmOptions(extension: SparkPlatformExtension): List<String> {
         return SparkPlatformJvmOptions.defaults(extension.line.get(), extension.variants.get())
+    }
+
+    private fun operatorEnvironment(jvmFlags: List<String>): Map<String, String> {
+        return buildMap {
+            put("SPARK_EXTRA_CLASSPATH", SPARK_OPERATOR_EXTRA_CLASSPATH)
+            if (jvmFlags.isNotEmpty()) {
+                put("SPARK_SUBMIT_OPTS", jvmFlags.joinToString(" "))
+            }
+            jvmFlags.forEachIndexed { index, option ->
+                put("SPARK_JAVA_OPT_$index", option)
+            }
+        }
     }
 
     private fun Project.isOfficialBuild(): Boolean {
@@ -269,5 +307,11 @@ class SparkPlatformPlugin : Plugin<Project> {
         const val BOM_CONFIGURATION = "sparkPlatformBom"
         const val JAVA_EXEC_RUNTIME_CONFIGURATION = "sparkPlatformJavaExecRuntime"
         const val PLATFORM_JARS_CLASSPATH = "/opt/spark/jars/*"
+        const val SPARK_ENTRYPOINT = "/opt/entrypoint.sh"
+        const val SPARK_OPERATOR_APP_DIR = "/opt/spark/app"
+        const val SPARK_OPERATOR_APP_JAR_NAME = "app.jar"
+        const val SPARK_OPERATOR_EXTRA_CLASSPATH =
+            "$SPARK_OPERATOR_APP_DIR/resources:$SPARK_OPERATOR_APP_DIR/classes:$SPARK_OPERATOR_APP_DIR/libs/*:$PLATFORM_JARS_CLASSPATH"
+        val JIB_IMAGE_TASKS = setOf("jib", "jibDockerBuild", "jibBuildTar")
     }
 }

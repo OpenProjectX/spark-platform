@@ -27,6 +27,12 @@ and `integrationDocker` to build every example image and run it with Docker.
 Each example also exposes `:example-name:integrationJvm` and
 `:example-name:integrationDocker`.
 
+Example app images follow the Spark Operator image contract: Spark's
+`/opt/entrypoint.sh` remains the entrypoint and the application jar is staged at
+`local:///opt/spark/app/app.jar`. The Docker integration runs the image through
+the same `driver --class ... local:///opt/spark/app/app.jar` path that the
+operator uses when it creates a Spark driver pod.
+
 The examples build uses Gradle Java toolchains for JDK 17. The example projects
 select Spark Platform lines and variants, then add versionless `sparkPlatform`
 dependencies for the Spark and variant APIs they compile against. The plugin

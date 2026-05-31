@@ -1,4 +1,5 @@
 import org.gradle.api.tasks.Exec
+import org.gradle.api.plugins.JavaApplication
 import org.gradle.jvm.toolchain.JavaToolchainService
 
 allprojects {
@@ -146,7 +147,23 @@ subprojects {
                 group = "verification"
                 description = "Builds the ${project.path} Docker image and runs it."
                 dependsOn(tasks.named("jibDockerBuild"))
-                commandLine("docker", "run", "--rm", applicationImage(project))
+                val application = project.extensions.getByType<JavaApplication>()
+                commandLine(
+                    "docker",
+                    "run",
+                    "--rm",
+                    "-e",
+                    "SPARK_DRIVER_BIND_ADDRESS=0.0.0.0",
+                    applicationImage(project),
+                    "driver",
+                    "--master",
+                    "local[*]",
+                    "--conf",
+                    "spark.driver.host=127.0.0.1",
+                    "--class",
+                    application.mainClass.get(),
+                    "local:///opt/spark/app/app.jar",
+                )
             }
 
             rootProject.tasks.named("integrationDocker") {
