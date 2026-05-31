@@ -33,13 +33,20 @@ fun taskSuffix(value: String): String =
 fun normalizedImagePart(value: String): String =
     value.trim().lowercase()
 
-fun localPlatformImageTag(line: String, variants: List<String>, platformVersion: String): String {
-    val variantPart = variants.joinToString("-") { normalizedImagePart(it) }.ifBlank { "base" }
-    return "${normalizedImagePart(line)}-$variantPart-${platformVersion.trim()}"
-}
-
 fun applicationImage(project: Project): String =
     "${project.group}/${project.name}:${project.version}".lowercase()
+
+fun javaHomeForNestedGradle(): File = File(System.getProperty("java.home")).canonicalFile
+
+fun pathWithJavaHome(javaHome: File): String {
+    val currentPath = System.getenv("PATH").orEmpty()
+    val javaBin = javaHome.resolve("bin").absolutePath
+    return if (currentPath.isBlank()) {
+        javaBin
+    } else {
+        "$javaBin${File.pathSeparator}$currentPath"
+    }
+}
 
 fun extensionGetter(extension: Any, propertyName: String): Any {
     val getterName = "get${propertyName.replaceFirstChar { it.uppercaseChar() }}"
@@ -99,25 +106,35 @@ subprojects {
         afterEvaluate {
             val sparkPlatform = extensions.findByName("sparkPlatform") ?: return@afterEvaluate
             val line = extensionStringProperty(sparkPlatform, "line")
+            val profile = extensionStringProperty(sparkPlatform, "profile")
             val variants = extensionListProperty(sparkPlatform, "variants")
-            val platformVersion = extensionStringProperty(sparkPlatform, "platformVersion")
+            val addons = extensionListProperty(sparkPlatform, "addons")
             val platformImage = extensionStringProperty(sparkPlatform, "platformImage")
-            val imageTag = localPlatformImageTag(line, variants, platformVersion)
+            val imageTag = extensionStringProperty(sparkPlatform, "imageTag")
             val buildTaskName = "build${taskSuffix(path)}PlatformImage"
 
             val buildPlatformImage = tasks.register<Exec>(buildTaskName) {
                 group = "jib"
                 description = "Builds the local Spark platform base image used by ${project.path}."
                 workingDir = rootProject.layout.projectDirectory.dir("..").asFile
-                commandLine(
+                val nestedJavaHome = javaHomeForNestedGradle()
+                environment("JAVA_HOME", nestedJavaHome.absolutePath)
+                environment("PATH", pathWithJavaHome(nestedJavaHome))
+                environment("GRADLE_USER_HOME", gradle.gradleUserHomeDir.absolutePath)
+                val args = mutableListOf(
                     rootProject.layout.projectDirectory.file("../gradlew").asFile.absolutePath,
                     ":platform-image:jibDockerBuild",
                     "--no-configuration-cache",
                     "-PsparkPlatform.line=${normalizedImagePart(line)}",
-                    "-PsparkPlatform.variants=${variants.joinToString(",") { normalizedImagePart(it) }}",
+                    "-PsparkPlatform.variants=${variants.joinToString(",") { it.trim() }}",
+                    "-PsparkPlatform.addons=${addons.joinToString(",") { it.trim() }}",
                     "-PsparkPlatform.imageRepository=$platformImage",
                     "-PsparkPlatform.imageTag=$imageTag",
                 )
+                if (profile.isNotBlank()) {
+                    args.add("-PsparkPlatform.profile=${profile.trim()}")
+                }
+                commandLine(args)
             }
 
             tasks.matching { it.name == "jibDockerBuild" || it.name == "jibBuildTar" }
