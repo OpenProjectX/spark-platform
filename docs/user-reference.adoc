@@ -409,7 +409,9 @@ Optional addon families currently represented in the catalog:
 
 Spark SQL Kafka `spark-sql-kafka-0-10` is part of the line-managed Spark
 baseline. Its version follows the selected Spark line and the clean Spark base
-runtime image provides the matching jar.
+runtime image provides the matching jar. The platform also pins
+`org.apache.kafka:kafka-clients` to `3.9.1`, so Spark Kafka's transitive Kafka
+client is not left to dependency mediation.
 
 == Version Catalog Bundle Names
 
@@ -472,6 +474,12 @@ should not need it.
 The plugin and BOM publish strict dependency constraints from the version
 catalog. This keeps transitive dependencies from moving a Spark line away from
 the selected platform version.
+
+To force a transitive dependency version, add that transitive module as a
+version-catalog alias and include it in the owning bundle. For example,
+`sparkKafkaClients` is included in the line-managed and base-runtime bundles so
+both application resolution and Spark base image assembly use
+`org.apache.kafka:kafka-clients:3.9.1`.
 
 Bundle scope summary:
 

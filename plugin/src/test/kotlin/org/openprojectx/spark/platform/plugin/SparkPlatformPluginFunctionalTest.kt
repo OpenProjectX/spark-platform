@@ -11,6 +11,7 @@ import java.io.File
 class SparkPlatformPluginFunctionalTest {
     private val spark3Version = "3.5.8"
     private val spark4Version = "4.0.1"
+    private val kafkaClientsVersion = "3.9.1"
 
     @field:TempDir
     lateinit var projectDir: File
@@ -165,6 +166,7 @@ class SparkPlatformPluginFunctionalTest {
         assertEquals(TaskOutcome.SUCCESS, result.task(":printSparkPlatform")?.outcome)
         assertTrue(result.output.contains("constraint=org.apache.spark:spark-sql_2.13:$spark4Version"))
         assertTrue(result.output.contains("constraint=org.apache.spark:spark-sql-kafka-0-10_2.13:$spark4Version"))
+        assertTrue(result.output.contains("constraint=org.apache.kafka:kafka-clients:$kafkaClientsVersion"))
     }
 
     @Test

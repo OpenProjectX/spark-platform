@@ -308,6 +308,7 @@ spark4 = "4.0.1"
 hadoopSpark3 = "3.4.2"
 hadoopSpark4 = "3.4.2"
 iceberg = "1.10.0"
+kafkaClients = "3.9.1"
 ```
 
 Naming guidance:
@@ -339,6 +340,7 @@ keys.
 spark4Sql = { module = "org.apache.spark:spark-sql_2.13", version.ref = "spark4" }
 spark4Iceberg = { module = "org.apache.iceberg:iceberg-spark-runtime-4.0_2.13", version.ref = "iceberg" }
 spark4Kafka = { module = "org.apache.spark:spark-sql-kafka-0-10_2.13", version.ref = "spark4" }
+sparkKafkaClients = { module = "org.apache.kafka:kafka-clients", version.ref = "kafkaClients" }
 spark4HadoopAws = { module = "org.apache.hadoop:hadoop-aws", version.ref = "hadoopSpark4" }
 ```
 
@@ -481,26 +483,55 @@ When adding a dependency, update this file first. Update
 `gradle/spark-platform-image.toml` only when that dependency should affect image
 defaults, curated profiles, transitive excludes, or capability resolution.
 
+### Forcing A Transitive Version
+
+To force a transitive dependency version, model that transitive dependency as a
+normal catalog alias and add it to the bundle that owns the runtime surface. Do
+not hard-code a resolution strategy in source code for one module.
+
+For Spark SQL Kafka, Spark pulls `org.apache.kafka:kafka-clients`
+transitively. The platform pins it explicitly:
+
+```toml
+[versions]
+kafkaClients = "3.9.1"
+
+[libraries]
+sparkKafkaClients = { module = "org.apache.kafka:kafka-clients", version.ref = "kafkaClients" }
+
+[bundles]
+spark-platform-spark4-managed = ["spark4Kafka", "sparkKafkaClients", "..."]
+spark-base-spark4-runtime = ["spark4Kafka", "sparkKafkaClients", "..."]
+```
+
+Putting the alias in `spark-platform-<line>-managed` makes the plugin and BOM
+publish a strict constraint for application builds. Putting the same alias in
+`spark-base-<line>-runtime` makes the clean Spark base image resolve and package
+that exact jar. Use the same pattern for any future transitive upgrade that is
+owned by the platform runtime.
+
 ### Example: Adding Spark SQL Kafka
 
 `spark-sql-kafka-0-10` is modeled as line-managed baseline content, not as a
 variant or addon. It is a Spark-owned module, its version follows the selected
 Spark line, and the runtime image should provide the matching jar by default.
+Its Kafka client transitive is pinned separately by `sparkKafkaClients`.
 
 ```toml
 [libraries]
 spark3Kafka = { module = "org.apache.spark:spark-sql-kafka-0-10_2.12", version.ref = "spark3" }
 spark3Scala213Kafka = { module = "org.apache.spark:spark-sql-kafka-0-10_2.13", version.ref = "spark3-scala213" }
 spark4Kafka = { module = "org.apache.spark:spark-sql-kafka-0-10_2.13", version.ref = "spark4" }
+sparkKafkaClients = { module = "org.apache.kafka:kafka-clients", version.ref = "kafkaClients" }
 
 [bundles]
-spark-platform-spark3-managed = ["spark3Core", "spark3Sql", "spark3Hive", "spark3Kafka", "..."]
-spark-platform-spark3-scala213-managed = ["spark3Scala213Core", "spark3Scala213Sql", "spark3Scala213Hive", "spark3Scala213Kafka", "..."]
-spark-platform-spark4-managed = ["spark4Core", "spark4Sql", "spark4Hive", "spark4Kafka", "..."]
+spark-platform-spark3-managed = ["spark3Core", "spark3Sql", "spark3Hive", "spark3Kafka", "sparkKafkaClients", "..."]
+spark-platform-spark3-scala213-managed = ["spark3Scala213Core", "spark3Scala213Sql", "spark3Scala213Hive", "spark3Scala213Kafka", "sparkKafkaClients", "..."]
+spark-platform-spark4-managed = ["spark4Core", "spark4Sql", "spark4Hive", "spark4Kafka", "sparkKafkaClients", "..."]
 
-spark-base-spark3-runtime = ["spark3Core", "spark3Sql", "spark3Hive", "spark3Kafka", "..."]
-spark-base-spark3-scala213-runtime = ["spark3Scala213Core", "spark3Scala213Sql", "spark3Scala213Hive", "spark3Scala213Kafka", "..."]
-spark-base-spark4-runtime = ["spark4Core", "spark4Sql", "spark4Hive", "spark4Kafka", "..."]
+spark-base-spark3-runtime = ["spark3Core", "spark3Sql", "spark3Hive", "spark3Kafka", "sparkKafkaClients", "..."]
+spark-base-spark3-scala213-runtime = ["spark3Scala213Core", "spark3Scala213Sql", "spark3Scala213Hive", "spark3Scala213Kafka", "sparkKafkaClients", "..."]
+spark-base-spark4-runtime = ["spark4Core", "spark4Sql", "spark4Hive", "spark4Kafka", "sparkKafkaClients", "..."]
 ```
 
 Users still opt into the Kafka API explicitly and without versions:
