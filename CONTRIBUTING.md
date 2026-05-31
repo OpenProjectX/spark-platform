@@ -17,6 +17,10 @@ env GRADLE_USER_HOME=/data/.gradle ./gradlew --version
 ## Repository Conventions
 
 - Keep dependency versions in `gradle/libs.versions.toml`.
+- The Spark Platform plugin packages this catalog into the published plugin
+  artifact. Consumer projects should not copy or maintain Spark Platform
+  version catalogs; they only select platform coordinates and add versionless
+  dependencies.
 - Do not hard-code Spark, Hadoop, Iceberg, Hudi, Paimon, or OpenLineage versions
   in plugin source.
 - Add Spark lines by adding catalog aliases and bundles such as
@@ -25,6 +29,669 @@ env GRADLE_USER_HOME=/data/.gradle ./gradlew --version
   line-wide Scala binary version or dependency set.
 - Put shared naming or normalization logic in `core`.
 - Keep example projects under the standalone `examples/` Gradle build and exclude generated build output.
+
+## Platform Concepts
+
+Spark Platform uses four different selection concepts. Keep them separate when
+changing code, docs, examples, or image tags.
+
+### Line
+
+A line is the broad Spark runtime compatibility lane. It answers:
+
+- Which Spark major/minor/runtime family are we targeting?
+- Which Scala binary version is part of that runtime?
+- Which Hadoop client baseline belongs to that Spark runtime?
+- Which base image family should application and platform images use?
+
+Examples:
+
+- `spark3`: Spark 3.5.x with Scala 2.12.
+- `spark3-scala213`: Spark 3.5.x with Scala 2.13, modeled as a separate line
+  because Scala binary compatibility changes artifact coordinates and base
+  images.
+- `spark4`: Spark 4.x with Scala 2.13.
+
+Catalog ownership:
+
+- `spark-platform-<line>-managed` contains baseline constraints every
+  application on that line should inherit.
+- `spark-base-<line>-runtime` contains the jars used to assemble the runtime
+  Spark base image.
+
+User-facing DSL:
+
+```kotlin
+sparkPlatform {
+    line.set("spark4")
+}
+```
+
+Do not branch in source code on concrete Spark versions such as `if spark4`.
+If a future Spark 5 exists, add a `spark5` line and the matching catalog/image
+config entries.
+
+### Variant
+
+A variant is an optional runtime family that is tied to Spark compatibility.
+It answers:
+
+- Which Spark-integrated table format, lineage integration, or runtime family is
+  selected?
+- Does this family encode the Spark or Scala binary version in artifact names?
+- Does it need JVM module options, capability resolution, or an isolated BOM?
+- Should it be visible in explicit image tags?
+
+Examples:
+
+- `iceberg`
+- `hudi`
+- `paimon`
+- `openlineage`
+
+Variants are compatibility-bearing. Iceberg/Hudi/Paimon/OpenLineage artifacts
+often encode Spark and Scala in their module names. Paimon on Spark 3 is a good
+example: it supports Scala 2.12 only, so the variant selection must respect the
+line's Scala binary version and image compatibility.
+
+Catalog ownership:
+
+- `spark-platform-<line>-variant-<variant>` adds optional constraints for that
+  variant on top of the line baseline.
+- `spark-platform-<line>-variant-<variant>-managed` is only for an isolated
+  variant BOM that replaces the normal line baseline for that variant.
+
+User-facing DSL:
+
+```kotlin
+sparkPlatform {
+    line.set("spark4")
+    variants.set(listOf("iceberg"))
+}
+
+dependencies {
+    sparkPlatform("org.apache.spark:spark-sql_2.13")
+    sparkPlatform("org.apache.iceberg:iceberg-spark-runtime-4.0_2.13")
+}
+```
+
+The user chooses which APIs they compile against, but does not choose versions.
+The plugin adds strict platform-owned constraints from its packaged catalog.
+
+### Addon
+
+An addon is an optional platform-owned dependency pack that is not a Spark/Scala
+compatibility dimension by itself. It answers:
+
+- Which operational connector or supporting library pack should be present?
+- Is this dependency useful across multiple variants?
+- Can it be added without changing the Spark/Scala identity of the app?
+
+Examples:
+
+- `hadoopAws`
+- `hadoopGcs`
+- JDBC driver packs, if added later.
+
+Use addons for fundamental or operational dependencies that can combine with
+many variants. For example, S3 support is not an Iceberg variant, Hudi variant,
+or Paimon variant; it is a storage connector that several table formats may
+use.
+
+Catalog ownership:
+
+- `spark-platform-<line>-addon-<addon>` adds optional constraints and image jars
+  for that dependency pack.
+
+User-facing DSL:
+
+```kotlin
+sparkPlatform {
+    line.set("spark4")
+    variants.set(listOf("iceberg"))
+    addons.set(listOf("hadoopAws"))
+}
+
+dependencies {
+    sparkPlatform("org.apache.hadoop:hadoop-aws")
+}
+```
+
+Explicit image tags include addons, for example
+`spark4-iceberg-hadoopaws-<version>`. Published release images should normally
+prefer curated profile tags when many addons are included.
+
+### Profile
+
+A profile is a curated image recipe. It answers:
+
+- Which variant/addon set do we want to publish as a short, stable image tag?
+- Which combinations are officially supported and worth releasing?
+- How do we avoid publishing every possible variant/addon permutation?
+
+Examples:
+
+- `lakehouse` might expand to variants such as `iceberg`, `hudi`, `paimon`,
+  `openlineage` plus selected storage addons.
+- `observability` could later expand to lineage and metrics-related runtime
+  packs.
+
+Profiles are defined in `gradle/spark-platform-image.toml`, not in plugin
+source. They are primarily an image publishing and base-image selection concept.
+Application builds should still set the `variants` and `addons` they compile
+against so dependency constraints match their source code.
+
+User-facing DSL for an application image that wants the curated base image tag:
+
+```kotlin
+sparkPlatform {
+    line.set("spark4")
+    profile.set("lakehouse")
+    variants.set(listOf("iceberg"))
+    addons.set(listOf("hadoopAws"))
+}
+```
+
+The profile controls the default application base image tag, for example
+`spark4-lakehouse-<platformVersion>`. The variants/addons still control
+compile/runtime constraints and local JVM smoke runs.
+
+### Selection Rules
+
+Use this decision table when adding a new dependency family:
+
+| Question | Model it as |
+| --- | --- |
+| Does it define a Spark/Scala/Hadoop runtime compatibility lane? | New line |
+| Does it depend on Spark integration artifacts or encode Spark/Scala in coordinates? | Variant |
+| Is it a connector/support pack reusable across variants? | Addon |
+| Is it a short name for a curated published image combination? | Profile |
+| Is it required for every app on a Spark line? | Line-managed baseline |
+
+Practical examples:
+
+- Spark 3 Scala 2.13 is a line, not a variant, because Scala binary version
+  changes core Spark artifact coordinates and base image identity.
+- Iceberg is a variant because its runtime artifact is Spark-version and
+  Scala-version specific.
+- Hadoop AWS is an addon because S3 support is useful across many table-format
+  variants and is not a Spark integration family by itself.
+- `lakehouse` is a profile because it is a curated release image name that
+  expands to a chosen set of variants and addons.
+
+## Dependency Catalog Configuration
+
+`gradle/libs.versions.toml` is the source of truth for dependency versions,
+module coordinates, and platform bundle names. It is a producer-owned platform
+catalog:
+
+- The plugin packages it into the published plugin jar and uses it to add strict
+  constraints for application builds.
+- `platform-image` uses it to resolve variant/addon jars for
+  `ghcr.io/openprojectx/spark-platform`.
+- `spark-base-image` uses `spark-base-<line>-runtime` bundles to assemble clean
+  Spark runtime base image jars.
+- Consumer projects should not copy this file. They only apply the plugin,
+  select line/variants/addons/profile, and declare versionless
+  `sparkPlatform(...)` dependencies for APIs they compile against.
+
+The catalog has four relevant sections.
+
+### `[versions]`
+
+`[versions]` holds version numbers and version labels.
+
+```toml
+[versions]
+spark3 = "3.5.8"
+"spark3-scala213" = "3.5.8"
+spark4 = "4.0.1"
+hadoopSpark3 = "3.4.2"
+hadoopSpark4 = "3.4.2"
+iceberg = "1.10.0"
+```
+
+Naming guidance:
+
+- Use one Spark version key per line. If the same Spark version has different
+  Scala binary lanes, keep distinct line keys such as `spark3` and
+  `spark3-scala213`.
+- Keep Hadoop version keys line-specific when they are part of the Spark
+  runtime baseline, for example `hadoopSpark3` and `hadoopSpark4`.
+- Use shared version keys only when the same upstream library version is
+  intentionally used across lines.
+- Do not encode versions in plugin source or build scripts when they can live
+  here.
+
+Implications:
+
+- Changing a version here affects plugin constraints, platform image jars, and
+  base runtime image jars for any bundles that reference that version key.
+- Version upgrades should be reviewed as platform changes, not as local example
+  or application changes.
+
+### `[libraries]`
+
+`[libraries]` maps catalog aliases to concrete Maven coordinates and version
+keys.
+
+```toml
+[libraries]
+spark4Sql = { module = "org.apache.spark:spark-sql_2.13", version.ref = "spark4" }
+spark4Iceberg = { module = "org.apache.iceberg:iceberg-spark-runtime-4.0_2.13", version.ref = "iceberg" }
+spark4HadoopAws = { module = "org.apache.hadoop:hadoop-aws", version.ref = "hadoopSpark4" }
+```
+
+Naming guidance:
+
+- Prefix Spark-line-specific aliases with the line, for example `spark3Sql`,
+  `spark3Scala213Sql`, and `spark4Sql`.
+- Use aliases that describe the platform concept and artifact, not the current
+  version number.
+- Keep Scala binary compatibility explicit in module coordinates. For example,
+  `spark-sql_2.12` and `spark-sql_2.13` are different artifacts and should be
+  represented by different aliases.
+- For addons that are Scala-agnostic, still add line-specific aliases when the
+  version should follow the line baseline, for example `spark3HadoopAws` and
+  `spark4HadoopAws`.
+
+Implications:
+
+- A library alias alone does not make the dependency managed. It must be added
+  to a platform bundle.
+- Application users normally do not use these aliases. They write versionless
+  Maven coordinates in `sparkPlatform(...)`; the plugin matches them with
+  constraints derived from bundles.
+
+### `[bundles]`
+
+`[bundles]` is where platform concepts become dependency sets. This is the most
+important section for Spark Platform behavior.
+
+Required bundle patterns:
+
+```text
+spark-platform-<line>-managed
+spark-platform-<line>-variant-<variant>
+spark-platform-<line>-variant-<variant>-managed
+spark-platform-<line>-addon-<addon>
+spark-base-<line>-runtime
+```
+
+Example:
+
+```toml
+[bundles]
+spark-platform-spark4-managed = [
+    "spark4Core",
+    "spark4Sql",
+    "spark4Hive",
+    "spark4HadoopClientApi",
+    "spark4HadoopClientRuntime",
+]
+spark-platform-spark4-variant-iceberg = ["spark4Iceberg"]
+spark-platform-spark4-addon-hadoopAws = ["spark4HadoopAws"]
+spark-base-spark4-runtime = [
+    "spark4Core",
+    "spark4Sql",
+    "spark4Hive",
+    "spark4HiveThriftserver",
+    "spark4Yarn",
+    "spark4Kubernetes",
+    "spark4Mllib",
+    "spark4Graphx",
+    "spark4Repl",
+    "spark4HadoopClientApi",
+    "spark4HadoopClientRuntime",
+]
+```
+
+Bundle meanings:
+
+- `spark-platform-<line>-managed`:
+  baseline constraints for application builds on that line. Put only libraries
+  every app on that line should inherit.
+- `spark-platform-<line>-variant-<variant>`:
+  optional compatibility-bearing runtime family, such as Iceberg, Hudi, Paimon,
+  or OpenLineage.
+- `spark-platform-<line>-variant-<variant>-managed`:
+  isolated variant BOM. Use only when a variant cannot share the normal
+  line-managed baseline.
+- `spark-platform-<line>-addon-<addon>`:
+  optional reusable support pack, such as Hadoop AWS, Hadoop GCS, or future JDBC
+  driver packs.
+- `spark-base-<line>-runtime`:
+  jars that make up the clean Spark runtime base image for the line. This is
+  broader than application constraints because the base image needs Spark
+  runtime modules such as YARN, Kubernetes, MLlib, GraphX, and REPL jars.
+
+Implications:
+
+- The plugin derives bundle names from `line`, `variants`, and `addons`.
+  Adding a correctly named bundle is what makes a new line, variant, or addon
+  discoverable without plugin source changes.
+- The platform image build also derives bundle names. If
+  `spark-platform-image.toml` lists `hadoopAws`, the catalog must contain
+  `spark-platform-<line>-addon-hadoopAws` for that line.
+- Keep baseline, variants, and addons separate. Do not put every optional
+  connector into `spark-platform-<line>-managed`, or all users will inherit it.
+- Do not put a Scala 2.12 artifact in a Scala 2.13 line bundle.
+
+### `[plugins]`
+
+`[plugins]` contains Gradle plugin coordinates used by this repository build,
+for example Jib or Kotlin plugins.
+
+```toml
+[plugins]
+jib = { id = "com.google.cloud.tools.jib", version.ref = "jib" }
+```
+
+This section is build tooling metadata. It is not part of Spark Platform runtime
+selection and should not be used to model Spark variants or addons.
+
+### How The Catalog Drives Builds
+
+For an application build:
+
+1. The user applies `org.openprojectx.spark.platform`.
+2. The plugin reads the packaged catalog from its own jar.
+3. `line`, `variants`, and `addons` determine bundle names.
+4. The plugin adds strict constraints for dependencies in those bundles.
+5. The user adds versionless `sparkPlatform(...)` dependencies for the APIs they
+   actually compile against.
+
+For a platform image build:
+
+1. `spark-platform-image.toml` chooses the line, variants, addons, or profile.
+2. The build maps selected variants/addons to catalog bundle names.
+3. Gradle resolves the jars from the catalog-managed coordinates and versions.
+4. The image build layers those jars into `/opt/spark/jars`.
+
+For a Spark runtime base image build:
+
+1. The selected line maps to `spark-base-<line>-runtime`.
+2. Gradle resolves the full Spark runtime jar set from catalog-managed
+   coordinates.
+3. Jib adds those jars to a stripped Spark layout image.
+
+When adding a dependency, update this file first. Update
+`gradle/spark-platform-image.toml` only when that dependency should affect image
+defaults, curated profiles, transitive excludes, or capability resolution.
+
+## Platform Image Configuration
+
+`gradle/spark-platform-image.toml` is the data model for platform image
+assembly and publishing. It does not define dependency versions; versions and
+coordinates live in `gradle/libs.versions.toml`, which is packaged into the
+plugin and used by platform image builds. The image config defines how those
+catalog bundles are selected, combined, excluded, and tagged for Docker images.
+
+The relationship is:
+
+| Concept | Defined in | Used for |
+| --- | --- | --- |
+| Dependency versions and module coordinates | `gradle/libs.versions.toml` | Plugin constraints, platform image jar resolution, Spark base runtime jars |
+| Line/variant/addon bundle names | `gradle/libs.versions.toml` | Mapping platform concepts to actual dependency coordinates |
+| Base image repository/suffix | `gradle/spark-platform-image.toml` | Choosing the upstream Spark runtime base image for a line |
+| Default variants/addons | `gradle/spark-platform-image.toml` | Aggregate image tasks when CLI properties omit selections |
+| Profiles | `gradle/spark-platform-image.toml` | Curated release image tags and curated variant/addon combinations |
+| Excludes and capability rules | `gradle/spark-platform-image.toml` | Resolution hygiene while building platform images |
+
+### Naming Conventions
+
+Line ids are lowercase image/runtime lanes, for example `spark3`,
+`spark3-scala213`, and `spark4`. The same line id must appear consistently in:
+
+- `spark-platform-<line>-managed` bundles.
+- `spark-base-<line>-runtime` bundles.
+- `[baseImages.<line>]`.
+- `[defaultVariants]`, `[defaultAddons]`, `[defaultProfiles]`.
+- `[profiles.<line>.<profile>]`.
+
+Variant, addon, and profile ids use lower camel case in Gradle and TOML config,
+for example `hadoopAws` and `hadoopGcs`. CLI inputs accept dash, underscore, or
+camel case and normalize to the same id, so `hadoop-aws`, `hadoop_aws`, and
+`hadoopAws` all address the `hadoopAws` addon. Image tag segments are rendered
+lowercase and joined with `-`, so `hadoopAws` becomes `hadoopaws` in a tag.
+
+Catalog bundle names must use these exact patterns:
+
+```text
+spark-platform-<line>-managed
+spark-platform-<line>-variant-<variant>
+spark-platform-<line>-variant-<variant>-managed
+spark-platform-<line>-addon-<addon>
+spark-base-<line>-runtime
+```
+
+Image config table names must use these exact patterns:
+
+```toml
+[baseImages.<line>]
+[defaultVariants]
+[defaultAddons]
+[defaultProfiles]
+[profiles.<line>.<profile>]
+[isolatedVariants]
+[resolution]
+[[capabilityResolution]]
+```
+
+### `baseImages`
+
+`[baseImages.<line>]` tells `platform-image` which Spark runtime image to use as
+the parent for a platform image line.
+
+```toml
+[baseImages.spark4]
+repository = "ghcr.io/openprojectx/spark"
+suffix = "-java17-python3-r-ubuntu"
+```
+
+The generated base image reference is:
+
+```text
+<repository>:<line-version-and-scala-part><suffix>
+```
+
+The version and Scala part come from the selected Spark line and the
+project-owned Spark base image model. The suffix is intentionally fixed here so
+platform images consistently use the Java 17, Python 3, R, Ubuntu runtime shape.
+
+Implications:
+
+- A new Spark line needs a `[baseImages.<line>]` entry.
+- The repository should normally be `ghcr.io/openprojectx/spark`, because
+  platform images consume the base images this project publishes.
+- Do not point a Scala 2.13 line at a Scala 2.12 base image. Model that as a
+  separate line and publish the matching base image.
+
+### `defaultVariants`
+
+`[defaultVariants]` lists the variants selected by aggregate platform image
+tasks when `-PsparkPlatform.variants` is not provided.
+
+```toml
+[defaultVariants]
+spark4 = ["iceberg", "hudi", "paimon", "openlineage"]
+```
+
+Implications:
+
+- This is not a user dependency default for application source code. It is a
+  platform image build default.
+- Each listed variant must have a matching
+  `spark-platform-<line>-variant-<variant>` bundle, or a
+  `spark-platform-<line>-variant-<variant>-managed` bundle, in
+  `gradle/libs.versions.toml`.
+- Keep this list to supported runtime families for the line. If a variant is
+  Scala 2.12-only, do not list it for a Scala 2.13 line.
+
+### `defaultAddons`
+
+`[defaultAddons]` lists addon packs selected by aggregate platform image tasks
+when `-PsparkPlatform.addons` is not provided.
+
+```toml
+[defaultAddons]
+spark4 = ["hadoopAws"]
+```
+
+Implications:
+
+- Addons are reusable operational packs, not Spark compatibility dimensions.
+- Each listed addon must have a matching `spark-platform-<line>-addon-<addon>`
+  bundle in `gradle/libs.versions.toml`.
+- Defaults affect aggregate image builds. A user can still request explicit
+  addons with `-PsparkPlatform.addons=hadoopAws,hadoopGcs` or
+  `sparkPlatform { addons.set(...) }`.
+
+### `defaultProfiles`
+
+`[defaultProfiles]` lists curated profiles published by aggregate publish tasks
+when no explicit profile is requested.
+
+```toml
+[defaultProfiles]
+spark4 = ["lakehouse"]
+```
+
+Implications:
+
+- This is the curated release surface. It keeps the number of published image
+  tags controlled.
+- Release workflows should normally publish profiles, not every individual
+  variant/addon permutation.
+- Each listed profile must have a matching `[profiles.<line>.<profile>]` table.
+
+### `profiles`
+
+`[profiles.<line>.<profile>]` expands a short profile name to a curated set of
+variants and addons.
+
+```toml
+[profiles.spark4.lakehouse]
+variants = ["iceberg", "hudi", "paimon", "openlineage"]
+addons = ["hadoopAws", "hadoopGcs"]
+```
+
+The profile affects image tags and image contents:
+
+- Profile tag: `spark4-lakehouse-<version>`.
+- Explicit variant/addon tag without profile:
+  `spark4-iceberg-hudi-paimon-openlineage-hadoopaws-hadoopgcs-<version>`.
+
+Application builds may set `profile` to choose a curated platform base image
+tag, but they should still set the variants/addons their code compiles against.
+The profile is not a replacement for dependency intent in the application DSL.
+
+Implications:
+
+- Profiles are where you decide which combinations are worth publishing.
+- Profiles may include multiple variants and addons as long as they are
+  compatible for the line.
+- Avoid turning every dependency into a profile. A profile is a curated product
+  surface, not a dependency category.
+
+### `isolatedVariants`
+
+`[isolatedVariants]` is optional. It lists variants that should not be folded
+into a normal combined image for that line.
+
+```toml
+[isolatedVariants]
+spark3 = ["someVariant"]
+```
+
+Use this when a variant cannot safely share the normal line-wide combination,
+for example because it needs a different Scala binary version, a replacement
+dependency family, or an isolated variant-managed BOM.
+
+Implications:
+
+- The aggregate image task can still build an isolated variant image.
+- The combined image builder excludes isolated variants from the default
+  compatible combined set.
+- If a variant is truly a different Spark/Scala runtime lane, prefer a new line
+  over overusing `isolatedVariants`.
+
+### `resolution.baseProvidedTransitiveGroups`
+
+`[resolution].baseProvidedTransitiveGroups` tells `platform-image` which
+transitive dependency groups should be excluded when resolving variant/addon
+jars for `/opt/spark/jars`.
+
+```toml
+[resolution]
+baseProvidedTransitiveGroups = [
+    "org.apache.spark",
+    "org.apache.hadoop",
+    "org.scala-lang",
+]
+```
+
+Implications:
+
+- These groups are expected to be provided by the Spark base runtime image or by
+  line-managed baseline jars.
+- Excluding them keeps variant/addon layers from reintroducing duplicate Spark,
+  Hadoop, Scala, logging, compression, or other baseline jars.
+- Do not add a group here just to hide a conflict. Add it only when the group is
+  intentionally owned by the base runtime or line baseline.
+
+### `capabilityResolution`
+
+`[[capabilityResolution]]` adds data-driven Gradle capability-resolution rules
+for platform image dependency resolution.
+
+```toml
+[[capabilityResolution]]
+capability = "org.lz4:lz4-java"
+preferredProvider = "at.yawk.lz4:lz4-java"
+reason = "Paimon's Spark bundle expects at.yawk.lz4:lz4-java when both LZ4 providers are present."
+```
+
+Implications:
+
+- Use this for generic resolution rules that may apply to more than one future
+  variant/addon.
+- Keep the reason specific enough that future maintainers know why the provider
+  was selected.
+- If the same capability rule is needed for application dependency resolution,
+  model it in `core` as well so plugin users get the same behavior outside image
+  builds.
+
+### How The Tables Work Together
+
+When building a platform image for a line:
+
+1. `baseImages.<line>` selects the Spark runtime base image.
+2. `defaultVariants.<line>` and `defaultAddons.<line>` provide defaults unless
+   CLI properties specify variants/addons.
+3. If `sparkPlatform.profile` is set, `profiles.<line>.<profile>` expands to
+   the curated variants/addons and the output tag uses the profile name.
+4. The build maps every selected variant/addon to catalog bundles in
+   `gradle/libs.versions.toml`.
+5. `resolution.baseProvidedTransitiveGroups` prevents base-owned groups from
+   being duplicated in variant/addon layers.
+6. `capabilityResolution` selects preferred providers when dependencies expose
+   overlapping Gradle capabilities.
+7. The resulting jars are layered into `/opt/spark/jars` on top of the selected
+   base image.
+
+When adding a new optional dependency family:
+
+1. Decide whether it is a variant or addon using the selection rules above.
+2. Add version and library aliases in `gradle/libs.versions.toml`.
+3. Add the matching `spark-platform-<line>-variant-<name>` or
+   `spark-platform-<line>-addon-<name>` bundle.
+4. Add it to `defaultVariants` or `defaultAddons` only if aggregate images
+   should include it by default.
+5. Add it to one or more `[profiles.<line>.<profile>]` tables if it should be
+   part of a curated release tag.
+6. Add `baseProvidedTransitiveGroups` or `capabilityResolution` entries only if
+   resolution requires them.
 
 ## Useful Commands
 
