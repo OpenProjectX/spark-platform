@@ -6,9 +6,17 @@ plugins {
 dependencies {
     implementation(project(":core"))
     implementation(libs.jibGradlePlugin)
+    implementation(libs.tomlj)
     testImplementation(libs.junitJupiter)
     testImplementation(gradleTestKit())
     testRuntimeOnly(libs.junitPlatformLauncher)
+}
+
+tasks.processResources {
+    from(rootProject.layout.projectDirectory.file("gradle/libs.versions.toml")) {
+        into("org/openprojectx/spark/platform/plugin")
+        rename { "spark-platform.versions.toml" }
+    }
 }
 
 gradlePlugin {

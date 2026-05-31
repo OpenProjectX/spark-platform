@@ -5,10 +5,6 @@ import com.google.cloud.tools.jib.gradle.JibPlugin
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
-import org.gradle.api.artifacts.ExternalModuleDependencyBundle
-import org.gradle.api.artifacts.MinimalExternalModuleDependency
-import org.gradle.api.artifacts.VersionCatalog
-import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.JavaExec
@@ -20,6 +16,8 @@ import org.openprojectx.spark.platform.core.SparkPlatformCatalog
 import org.openprojectx.spark.platform.core.SparkPlatformJvmOptions
 
 class SparkPlatformPlugin : Plugin<Project> {
+    private val dependencyCatalog = SparkPlatformDependencyCatalog.loadDefault()
+
     override fun apply(project: Project) {
         val extension = project.extensions.create(
             "sparkPlatform",
@@ -102,17 +100,18 @@ class SparkPlatformPlugin : Plugin<Project> {
                 project.configurations.named(targetConfiguration).configure { it.extendsFrom(managed, bom) }
             }
 
-            val catalog = project.versionCatalog()
-            val selectedBundles = catalog.managedBundles(extension.line.get(), extension.variants.get(), extension.addons.get())
-            selectedBundles.forEach { bundle ->
-                bundle.forEach { dependency ->
-                    project.dependencies.constraints.add(
-                        MANAGED_CONFIGURATION,
-                        "${dependency.module.group}:${dependency.module.name}"
-                    ) {
-                        it.version { version ->
-                            version.strictly(dependency.requiredVersion())
-                        }
+            val selectedDependencies = dependencyCatalog.managedDependencies(
+                extension.line.get(),
+                extension.variants.get(),
+                extension.addons.get()
+            )
+            selectedDependencies.forEach { dependency ->
+                project.dependencies.constraints.add(
+                    MANAGED_CONFIGURATION,
+                    "${dependency.group}:${dependency.name}"
+                ) {
+                    it.version { version ->
+                        version.strictly(dependency.version)
                     }
                 }
             }
@@ -239,67 +238,6 @@ class SparkPlatformPlugin : Plugin<Project> {
                     .orElse(false)
             )
             .get()
-    }
-
-    private fun Project.versionCatalog(): VersionCatalog {
-        return extensions.getByType(VersionCatalogsExtension::class.java).named("libs")
-    }
-
-    private fun VersionCatalog.bundle(name: String): ExternalModuleDependencyBundle {
-        return findBundle(name)
-            .orElseThrow {
-                IllegalArgumentException(
-                    "Version catalog bundle '$name' is missing. Add it to gradle/libs.versions.toml."
-                )
-            }
-            .get()
-    }
-
-    private fun VersionCatalog.bundleOrNull(name: String): ExternalModuleDependencyBundle? {
-        return findBundle(name).orElse(null)?.get()
-    }
-
-    private fun VersionCatalog.managedBundles(
-        line: String,
-        requestedVariants: Iterable<String>,
-        requestedAddons: Iterable<String>
-    ): List<ExternalModuleDependencyBundle> {
-        val variants = SparkPlatformCatalog.normalizeVariants(requestedVariants)
-        val addons = SparkPlatformCatalog.normalizeVariants(requestedAddons)
-
-        if (variants.size == 1 && addons.isEmpty()) {
-            val variantManagedBundle = bundleOrNull(
-                SparkPlatformCatalog.variantManagedBundle(line, variants.single())
-            )
-            if (variantManagedBundle != null) {
-                return listOf(variantManagedBundle)
-            }
-        }
-
-        return buildList {
-            add(bundle(SparkPlatformCatalog.managedBundle(line)))
-            variants.forEach { variant ->
-                add(
-                    bundleOrNull(SparkPlatformCatalog.variantManagedBundle(line, variant))
-                        ?: bundle(SparkPlatformCatalog.variantBundle(line, variant))
-                )
-            }
-            addons.forEach { addon ->
-                add(bundle(SparkPlatformCatalog.addonBundle(line, addon)))
-            }
-        }
-    }
-
-    private fun MinimalExternalModuleDependency.requiredVersion(): String {
-        val version = versionConstraint.requiredVersion
-            .ifBlank { versionConstraint.preferredVersion }
-            .ifBlank { versionConstraint.strictVersion }
-
-        require(version.isNotBlank()) {
-            "Catalog dependency '${module.group}:${module.name}' must declare a version."
-        }
-
-        return version
     }
 
     companion object {

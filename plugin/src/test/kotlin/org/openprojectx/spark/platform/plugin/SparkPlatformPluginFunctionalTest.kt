@@ -291,21 +291,8 @@ class SparkPlatformPluginFunctionalTest {
     }
 
     private fun writeFixture(extraBuildScript: String = "") {
-        val catalogFile = File(System.getProperty("user.dir"))
-            .parentFile
-            .resolve("gradle/libs.versions.toml")
-            .absolutePath
-            .replace(File.separatorChar, '/')
         projectDir.resolve("settings.gradle.kts").writeText(
             """
-            dependencyResolutionManagement {
-                versionCatalogs {
-                    create("libs") {
-                        from(files("$catalogFile"))
-                    }
-                }
-            }
-
             rootProject.name = "fixture"
             """.trimIndent()
         )
