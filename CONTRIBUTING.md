@@ -115,6 +115,38 @@ docker run --rm --entrypoint sh \
   -c 'find /opt/spark/jars -maxdepth 1 -type f -name "*.jar" -printf "%f\n" | sort'
 ```
 
+List locally built snapshot image tags for one repository:
+
+```bash
+IMAGE_REPO=ghcr.io/openprojectx/spark-platform
+docker image ls "$IMAGE_REPO" \
+  --format '{{.Repository}}:{{.Tag}} {{.CreatedAt}}' \
+  | grep -- '-SNAPSHOT '
+```
+
+Delete old local snapshot image tags while keeping the latest snapshot version
+for that repository:
+
+```bash
+IMAGE_REPO=ghcr.io/openprojectx/spark-platform
+LATEST_SNAPSHOT_VERSION="$(
+  docker image ls "$IMAGE_REPO" --format '{{.Tag}}' \
+    | grep -E -- '[0-9]+(\.[0-9]+)*-SNAPSHOT$' \
+    | sed -E 's/.*-([0-9]+(\.[0-9]+)*-SNAPSHOT)$/\1/' \
+    | sort -Vu \
+    | tail -n 1
+)"
+
+docker image ls "$IMAGE_REPO" --format '{{.Repository}}:{{.Tag}}' \
+  | grep -E -- '[0-9]+(\.[0-9]+)*-SNAPSHOT$' \
+  | grep -v -- "-${LATEST_SNAPSHOT_VERSION}$" \
+  | xargs -r docker image rm
+```
+
+The cleanup is local to the Docker daemon. It removes only tags for
+`IMAGE_REPO` that end in a `*-SNAPSHOT` version and leaves the latest snapshot
+version in place across all profiles, variants, and addons.
+
 ## Adding a Managed Dependency
 
 1. Add or update the version in `gradle/libs.versions.toml`.
