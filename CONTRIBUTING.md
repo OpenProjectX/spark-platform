@@ -14,6 +14,56 @@ example project runnable from an IDE.
 env GRADLE_USER_HOME=/data/.gradle ./gradlew --version
 ```
 
+## Publish A Snapshot Plugin Locally
+
+Use Maven Local when testing the plugin from a separate consumer project without
+going through a remote snapshot repository.
+
+Publish the current snapshot from this repository:
+
+```bash
+env GRADLE_USER_HOME=/data/.gradle ./gradlew publishToMavenLocal
+```
+
+This publishes the Gradle plugin marker, the plugin implementation jar, `core`,
+and the platform BOM using the version in `gradle.properties`, for example
+`0.1.38-SNAPSHOT`. The plugin jar includes the producer-owned
+`gradle/libs.versions.toml`, so the consumer project does not copy or maintain
+Spark, Hadoop, Iceberg, Hudi, Paimon, OpenLineage, or addon versions.
+
+In an external test project, put `mavenLocal()` in plugin management so Gradle
+can find the local plugin marker:
+
+```kotlin
+pluginManagement {
+    repositories {
+        mavenLocal()
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        mavenLocal()
+        mavenCentral()
+    }
+}
+```
+
+Then apply the local snapshot plugin version:
+
+```kotlin
+plugins {
+    id("org.openprojectx.spark.platform") version "0.1.38-SNAPSHOT"
+}
+```
+
+That version is only the Gradle plugin artifact version. Platform dependency
+versions still come from the catalog packaged inside the plugin, and application
+dependencies should remain versionless.
+
 ## Repository Conventions
 
 - Keep dependency versions in `gradle/libs.versions.toml`.
