@@ -47,12 +47,42 @@ cd examples
 env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4-iceberg:run --no-configuration-cache
 ```
 
+Build and run the Spark 4 + Iceberg example app image:
+
+```bash
+cd examples
+env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4-iceberg:jibDockerBuild --no-configuration-cache
+
+docker run --rm \
+  org.openprojectx.spark.platform.examples/spark4-iceberg:0.1.1-snapshot
+```
+
+The `ghcr.io/openprojectx/spark-platform:<tag>` images are platform/runtime
+base images. They contain Spark and platform-managed jars under
+`/opt/spark/jars`, but they do not run an example application by default. The
+example application images are built from the standalone `examples/` Gradle
+build and use the lowercased Gradle group, project name, and version:
+`org.openprojectx.spark.platform.examples/<example-project>:<version>`.
+
 Run the Spark 3 + Paimon example:
 
 ```bash
 cd examples
 env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark3-paimon:run --no-configuration-cache
 ```
+
+Run every example as both a JVM app and a Docker app image:
+
+```bash
+cd examples
+env GRADLE_USER_HOME=/data/.gradle ../gradlew integration --no-configuration-cache
+```
+
+The `integrationDocker` task builds each example app image with
+`jibDockerBuild` and then runs `docker run --rm` against that app image. The
+repository root `integrationTest` task delegates to this examples integration
+task, so release verification covers example app image execution as well as the
+plain JVM `run` path.
 
 Build a platform image:
 
