@@ -18,10 +18,11 @@ Application projects opt into the Spark or variant APIs they compile against by
 adding versionless dependencies to `sparkPlatform`. Local builds expose those
 dependencies through `implementation` so the app can run from an IDE or Gradle.
 Official builds expose them through `compileOnly` because the platform image
-provides them at runtime. JVM smoke runs still receive a platform runtime
-classpath in CI, so tests do not depend on whatever happened to be installed on
-a developer machine. Application builds should manage only their own classes,
-application-specific libraries, and the platform APIs they actually use.
+provides them at runtime. Gradle-run JVM tests and smoke runs still receive a
+platform runtime classpath in CI, so tests do not depend on whatever happened to
+be installed on a developer machine. Application builds should manage only their
+own classes, application-specific libraries, and the platform APIs they actually
+use.
 
 `managed` is a Gradle resolution contract: it adds strict constraints, but it
 does not package jars into the user application image by itself. Runtime jars

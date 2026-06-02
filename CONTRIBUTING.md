@@ -246,7 +246,7 @@ sparkPlatform {
 
 The profile controls the default application base image tag, for example
 `spark4-lakehouse-<platformVersion>`. The variants/addons still control
-compile/runtime constraints and local JVM smoke runs.
+compile/runtime constraints and local JVM test or smoke runs.
 
 ### Scope And Packaging
 
@@ -277,8 +277,9 @@ Application image packaging follows the same boundary:
 - Official application images treat platform-owned dependencies as provided by
   the image layers. The app image should contain user classes, resources, and
   application-owned libraries, not Spark/Hadoop/variant jars copied again.
-- `sparkPlatformJavaExecRuntime` exists for smoke tests in official mode; it is
-  a test/runtime convenience and does not change application image packaging.
+- `sparkPlatformJavaExecRuntime` exists for Gradle-run JVM tests and smoke runs
+  in official mode; it is a test/runtime convenience and does not change
+  application image packaging.
 
 Do not fix a production `ClassNotFoundException` for Spark/Hadoop/variant
 classes by moving the dependency to `implementation`. That makes the app image

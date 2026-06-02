@@ -70,7 +70,7 @@ The plugin creates:
 * the `sparkPlatform` extension
 * the `sparkPlatform` dependency configuration
 * the `sparkPlatformBom` dependency configuration, reserved for explicit BOM use
-* the `sparkPlatformJavaExecRuntime` dependency configuration for CI smoke runs
+* the `sparkPlatformJavaExecRuntime` dependency configuration for CI JVM test and smoke runs
 * Jib configuration for application images
 
 The plugin expects a Gradle version catalog named `libs`. The repository uses
@@ -224,11 +224,11 @@ compileOnly
   extendsFrom sparkPlatform, sparkPlatformBom
 ----
 
-Managed `JavaExec` tasks also receive a resolvable
+Managed `JavaExec` and `Test` tasks also receive a resolvable
 `sparkPlatformJavaExecRuntime` classpath in official mode. This keeps JVM smoke
-tests runnable in CI without changing application image packaging: the
-application image still treats platform-owned dependencies as provided by the
-platform base image.
+tests and Gradle test tasks runnable in CI without changing application image
+packaging: the application image still treats platform-owned dependencies as
+provided by the platform base image.
 
 Packaging behavior:
 
@@ -912,10 +912,10 @@ Dependency version appears in a build script::
   dependency declarations.
 
 IDE uses a newer JDK::
-  Configure the Gradle JVM to JDK 17. Example compilation and `JavaExec` tasks
-  use Gradle Java toolchains.
+  Configure the Gradle JVM to JDK 17. Example compilation, `JavaExec` tasks,
+  and `Test` tasks use Gradle Java toolchains.
 
 Java module access error while running Spark or Iceberg::
-  The plugin applies Spark's Java module options to managed `JavaExec` tasks and
-  Jib application image entrypoints. If a new runtime family needs additional
+  The plugin applies Spark's Java module options to managed `JavaExec` tasks,
+  `Test` tasks, and Jib application image entrypoints. If a new runtime family needs additional
   options, add a JVM option rule in the core module.

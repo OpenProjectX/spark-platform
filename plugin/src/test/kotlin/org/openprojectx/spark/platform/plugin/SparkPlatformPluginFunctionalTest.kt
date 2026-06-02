@@ -347,7 +347,30 @@ class SparkPlatformPluginFunctionalTest {
         assertTrue(result.output.contains("javaExecJvmArg=--add-opens=java.base/java.nio=ALL-UNNAMED"))
     }
 
+    @Test
+    fun `official build configures Test tasks with Spark runtime and module options`() {
+        writeFixture(
+            """
+            sparkPlatform {
+                line.set("spark4")
+                variants.set(listOf("iceberg"))
+            }
+
+            dependencies {
+                sparkPlatform(files("spark-platform-test-marker.jar"))
+            }
+            """.trimIndent()
+        )
+
+        val result = gradleRunner("printTestTask", "-PsparkPlatform.officialBuild=true").build()
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":printTestTask")?.outcome)
+        assertTrue(result.output.contains("testJvmArg=--add-opens=java.base/java.nio=ALL-UNNAMED"))
+        assertTrue(result.output.contains("testClasspathFile=spark-platform-test-marker.jar"))
+    }
+
     private fun writeFixture(extraBuildScript: String = "") {
+        projectDir.resolve("spark-platform-test-marker.jar").writeText("marker")
         projectDir.resolve("settings.gradle.kts").writeText(
             """
             rootProject.name = "fixture"
@@ -411,6 +434,17 @@ class SparkPlatformPluginFunctionalTest {
                 doFirst {
                     jvmArgs.orEmpty().forEach { println("javaExecJvmArg=${'$'}it") }
                     throw org.gradle.api.tasks.StopExecutionException()
+                }
+            }
+
+            tasks.register("printTestTask") {
+                doLast {
+                    val testTask = tasks.named<Test>("test").get()
+                    testTask.jvmArgs.orEmpty().forEach { println("testJvmArg=${'$'}it") }
+                    testTask.classpath.files
+                        .map { it.name }
+                        .sorted()
+                        .forEach { println("testClasspathFile=${'$'}it") }
                 }
             }
             """.trimIndent()

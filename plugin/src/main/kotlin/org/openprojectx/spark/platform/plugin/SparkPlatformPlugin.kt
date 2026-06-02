@@ -6,9 +6,10 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.tasks.Copy
 import org.gradle.api.tasks.JavaExec
-import org.gradle.api.plugins.JavaPlugin
+import org.gradle.api.tasks.testing.Test
 import org.gradle.jvm.tasks.Jar
 import org.openprojectx.spark.platform.core.ModuleCoordinate
 import org.openprojectx.spark.platform.core.SparkPlatformCapabilityResolutions
@@ -70,7 +71,7 @@ class SparkPlatformPlugin : Plugin<Project> {
         }
 
         project.configurations.create(JAVA_EXEC_RUNTIME_CONFIGURATION) {
-            it.description = "Resolvable Spark Platform runtime dependencies for JavaExec smoke runs in official builds."
+            it.description = "Resolvable Spark Platform runtime dependencies for JVM test and smoke runs in official builds."
             it.isCanBeConsumed = false
             it.isCanBeResolved = true
             it.extendsFrom(managed, bom)
@@ -79,6 +80,7 @@ class SparkPlatformPlugin : Plugin<Project> {
         project.plugins.withType(JavaPlugin::class.java) {
             wireManagedConfigurations(project, extension, managed, bom)
             configureJavaExec(project, extension)
+            configureTestTasks(project, extension)
         }
 
         project.pluginManager.apply(JibPlugin::class.java)
@@ -192,6 +194,20 @@ class SparkPlatformPlugin : Plugin<Project> {
                 it.jvmArgs(managedJvmOptions(extension))
                 if (extension.officialBuild.get()) {
                     it.classpath(project.configurations.named(JAVA_EXEC_RUNTIME_CONFIGURATION))
+                }
+            }
+        }
+    }
+
+    private fun configureTestTasks(project: Project, extension: SparkPlatformExtension) {
+        project.afterEvaluate {
+            project.tasks.withType(Test::class.java).configureEach {
+                it.jvmArgs(managedJvmOptions(extension))
+                if (extension.officialBuild.get()) {
+                    it.classpath = project.files(
+                        it.classpath,
+                        project.configurations.named(JAVA_EXEC_RUNTIME_CONFIGURATION)
+                    )
                 }
             }
         }
