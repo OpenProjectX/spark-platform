@@ -122,7 +122,12 @@ class SparkPlatformPlugin : Plugin<Project> {
 
     private fun defaultManagedConfigurations(extension: SparkPlatformExtension): List<String> {
         return if (extension.officialBuild.get()) {
-            listOf(JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME)
+            listOf(
+                JavaPlugin.COMPILE_ONLY_CONFIGURATION_NAME,
+                JavaPlugin.TEST_IMPLEMENTATION_CONFIGURATION_NAME,
+                JavaPlugin.TEST_COMPILE_ONLY_CONFIGURATION_NAME,
+                JavaPlugin.TEST_RUNTIME_ONLY_CONFIGURATION_NAME
+            )
         } else {
             listOf(JavaPlugin.IMPLEMENTATION_CONFIGURATION_NAME)
         }

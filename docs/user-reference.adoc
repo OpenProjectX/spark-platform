@@ -224,6 +224,11 @@ compileOnly
   extendsFrom sparkPlatform, sparkPlatformBom
 ----
 
+Official builds also extend `testImplementation`, `testCompileOnly`, and
+`testRuntimeOnly` from the platform configurations by default. This keeps
+versionless test dependencies resolvable in CI while main application packaging
+still treats platform-owned runtime jars as provided.
+
 Managed `JavaExec` and `Test` tasks also receive a resolvable
 `sparkPlatformJavaExecRuntime` classpath in official mode. This keeps JVM smoke
 tests and Gradle test tasks runnable in CI without changing application image
@@ -300,7 +305,7 @@ becomes `hadoopaws`.
 `implementation` or `compileOnly`.
 
 | `managedConfigurations`
-| `implementation` locally, `compileOnly` for official builds
+| `implementation` locally; `compileOnly`, `testImplementation`, `testCompileOnly`, and `testRuntimeOnly` for official builds
 | Configurations that extend `sparkPlatform` and `sparkPlatformBom`. Set this
 when using Spark Platform like a BOM for scopes such as `api`,
 `testImplementation`, or `testCompileOnly`.

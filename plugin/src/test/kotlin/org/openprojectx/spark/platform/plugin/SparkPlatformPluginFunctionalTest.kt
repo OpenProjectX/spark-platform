@@ -31,7 +31,7 @@ class SparkPlatformPluginFunctionalTest {
     }
 
     @Test
-    fun `sparkPlatform constraints are compile only constraints for official builds`() {
+    fun `sparkPlatform constraints are compile only and test constraints for official builds`() {
         writeFixture()
 
         val result = gradleRunner("printSparkPlatform", "-PsparkPlatform.officialBuild=true").build()
@@ -39,6 +39,9 @@ class SparkPlatformPluginFunctionalTest {
         assertEquals(TaskOutcome.SUCCESS, result.task(":printSparkPlatform")?.outcome)
         assertTrue(result.output.contains("implementationExtends="))
         assertTrue(result.output.contains("compileOnlyExtends=sparkPlatform,sparkPlatformBom"))
+        assertTrue(Regex("testImplementationExtends=.*sparkPlatform.*sparkPlatformBom").containsMatchIn(result.output))
+        assertTrue(Regex("testCompileOnlyExtends=.*sparkPlatform.*sparkPlatformBom").containsMatchIn(result.output))
+        assertTrue(Regex("testRuntimeOnlyExtends=.*sparkPlatform.*sparkPlatformBom").containsMatchIn(result.output))
     }
 
     @Test

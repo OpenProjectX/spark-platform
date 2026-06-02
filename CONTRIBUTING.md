@@ -277,6 +277,8 @@ Application image packaging follows the same boundary:
 - Official application images treat platform-owned dependencies as provided by
   the image layers. The app image should contain user classes, resources, and
   application-owned libraries, not Spark/Hadoop/variant jars copied again.
+- Official builds manage `testImplementation`, `testCompileOnly`, and
+  `testRuntimeOnly` by default so versionless test dependencies resolve in CI.
 - `sparkPlatformJavaExecRuntime` exists for Gradle-run JVM tests and smoke runs
   in official mode; it is a test/runtime convenience and does not change
   application image packaging.

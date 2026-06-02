@@ -36,6 +36,8 @@ are owned by image layers:
 
 Any scope listed in `managedConfigurations` can use managed dependencies without
 versions, including `api`, `implementation`, and `testImplementation`.
+Official builds manage test scopes by default so versionless test dependencies
+resolve in CI.
 Packaging still follows that scope: `implementation(...)` is packaged into the
 app image, while `sparkPlatform(...)` is the provided-platform scope. A
 production `ClassNotFoundException` for a Spark/Hadoop/variant class means the
