@@ -84,6 +84,27 @@ dependencies {
 }
 ```
 
+For Spark library development, the plugin can be used only for dependency
+management. Put Spark runtime APIs on normal Gradle scopes and let the platform
+provide versions:
+
+```kotlin
+plugins {
+    `java-library`
+    id("org.openprojectx.spark.platform")
+}
+
+sparkPlatform {
+    line.set("spark4")
+    managedConfigurations.set(listOf("compileOnly", "testImplementation", "testRuntimeOnly"))
+}
+
+dependencies {
+    compileOnly("org.apache.spark:spark-sql_2.13")
+    testImplementation("org.apache.spark:spark-sql_2.13")
+}
+```
+
 See the standalone `examples` Gradle build for runnable applications.
 
 ```bash

@@ -136,6 +136,75 @@ dependencies {
 }
 ----
 
+=== Spark Library Dependency Management Only
+
+Spark Platform can also be used only for dependency constraints. This is useful
+when developing a Spark library instead of a runnable Spark application image.
+In that mode, the plugin owns Spark, Hadoop, Scala, variant, and addon versions,
+but the library decides which normal Gradle scopes expose or consume those
+dependencies.
+
+For most Spark libraries, Spark runtime artifacts should be `compileOnly`
+because the target Spark cluster or runtime provides them. Add
+`testImplementation` and `testRuntimeOnly` when tests need Spark on the local or
+CI classpath:
+
+[source,kotlin]
+----
+plugins {
+    `java-library`
+    id("org.openprojectx.spark.platform")
+}
+
+sparkPlatform {
+    line.set("spark4")
+    variants.set(listOf("iceberg"))
+    managedConfigurations.set(
+        listOf(
+            "compileOnly",
+            "testImplementation",
+            "testRuntimeOnly"
+        )
+    )
+}
+
+dependencies {
+    compileOnly("org.apache.spark:spark-sql_2.13")
+    compileOnly("org.apache.spark:spark-hive_2.13")
+
+    testImplementation("org.apache.spark:spark-sql_2.13")
+    testImplementation("org.apache.iceberg:iceberg-spark-runtime-4.0_2.13")
+}
+----
+
+Use `api` only when the library's public API exposes Spark, Hadoop, Iceberg, or
+other platform-owned types to downstream consumers:
+
+[source,kotlin]
+----
+sparkPlatform {
+    line.set("spark4")
+    variants.set(listOf("iceberg"))
+    managedConfigurations.set(listOf("api", "compileOnly", "testImplementation"))
+}
+
+dependencies {
+    api("org.apache.spark:spark-sql_2.13")
+    compileOnly("org.apache.spark:spark-hive_2.13")
+    testImplementation("org.apache.spark:spark-sql_2.13")
+}
+----
+
+Avoid `implementation` for Spark-owned runtime jars in a library unless the
+library intentionally owns and ships that dependency. A normal Spark library
+should not package Spark into its own jar or publish Spark as an implementation
+runtime dependency by accident.
+
+This mode does not require building `platform-image`, `spark-base-image`, or an
+application image. It uses the same catalog and strict constraints, but normal
+Gradle scope semantics decide compile classpath, test classpath, and published
+metadata.
+
 Application builds should not put versions for Spark, Hadoop, Scala, Iceberg,
 Hudi, Paimon, or OpenLineage artifacts in build scripts. To change that stack,
 change the platform catalog and platform image, then let applications select the
