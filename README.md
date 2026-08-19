@@ -31,7 +31,7 @@ are owned by image layers:
 | Layer | Contains |
 | --- | --- |
 | Spark base image | Spark, Scala, Hadoop, and line-managed runtime jars such as Spark SQL Kafka and Spark Avro. |
-| Platform image | Selected variant/addon jars such as Iceberg, Hudi, Paimon, OpenLineage, Gravitino, Hadoop AWS, Hadoop GCS, and Iceberg AWS. |
+| Platform image | Selected variant/addon jars such as Iceberg, Hudi, Paimon, OpenLineage, Gravitino, Kyuubi, Hadoop AWS, Hadoop GCS, and Iceberg AWS. |
 | Application image | User classes, resources, and application-owned libraries. |
 
 Any scope listed in `managedConfigurations` can use managed dependencies without

@@ -482,6 +482,8 @@ Optional runtime families currently represented in the catalog:
 * OpenLineage `1.39.0`
 * Apache Gravitino Spark Connector `1.3.0` for the `spark3` and
   `spark3-scala213` lines
+* Apache Kyuubi Spark Hive Connector `1.11.0` for the `spark3` and
+  `spark3-scala213` lines
 
 Optional addon families currently represented in the catalog:
 
@@ -527,6 +529,29 @@ configure `spark.plugins` with
 the Gravitino URI and metalake through Spark configuration. The connector is
 not part of the `lakehouse` profile; add it explicitly or define a curated
 profile that includes it.
+
+The `kyuubi` variant supplies Kyuubi's Spark DataSource V2 Hive connector for
+the selected Scala binary version. It can be selected independently:
+
+[source,kotlin]
+----
+sparkPlatform {
+    line.set("spark3")
+    variants.set(listOf("kyuubi"))
+}
+
+dependencies {
+    sparkPlatform("org.apache.kyuubi:kyuubi-spark-connector-hive_2.12")
+}
+----
+
+Configure a Spark catalog with
+`org.apache.kyuubi.spark.connector.hive.HiveTableCatalog` to activate it. The
+same Kyuubi dependency is included as a strict constraint in the `gravitino`
+variant because the Gravitino connector uses it internally. This prevents
+Gravitino's transitive dependency from drifting to an untested Kyuubi version.
+The Kyuubi Spark SQL engine is intentionally not included: it belongs to a
+Kyuubi server/engine deployment, not a normal Spark application runtime.
 
 The `cloudera` line is intentionally narrower than the Apache Spark lines. It
 models the Cloudera Spark TCK surface: Spark core/sql/hive, Scala 2.12.15,

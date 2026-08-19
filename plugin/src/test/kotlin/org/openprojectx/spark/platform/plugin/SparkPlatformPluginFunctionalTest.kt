@@ -14,6 +14,7 @@ class SparkPlatformPluginFunctionalTest {
     private val clouderaSparkVersion = "3.3.2.3.3.7190.9-1"
     private val kafkaClientsVersion = "3.9.1"
     private val gravitinoVersion = "1.3.0"
+    private val kyuubiVersion = "1.11.0"
 
     @field:TempDir
     lateinit var projectDir: File
@@ -175,6 +176,11 @@ class SparkPlatformPluginFunctionalTest {
                 "constraint=org.apache.gravitino:gravitino-spark-connector-runtime-3.5_2.12:$gravitinoVersion"
             )
         )
+        assertTrue(
+            scala212Result.output.contains(
+                "constraint=org.apache.kyuubi:kyuubi-spark-connector-hive_2.12:$kyuubiVersion"
+            )
+        )
 
         writeFixture(
             """
@@ -191,6 +197,41 @@ class SparkPlatformPluginFunctionalTest {
         assertTrue(
             scala213Result.output.contains(
                 "constraint=org.apache.gravitino:gravitino-spark-connector-runtime-3.5_2.13:$gravitinoVersion"
+            )
+        )
+        assertTrue(
+            scala213Result.output.contains(
+                "constraint=org.apache.kyuubi:kyuubi-spark-connector-hive_2.13:$kyuubiVersion"
+            )
+        )
+    }
+
+    @Test
+    fun `kyuubi variant can be selected independently`() {
+        writeFixture(
+            """
+            sparkPlatform {
+                line.set("spark3-scala213")
+                variants.set(listOf("kyuubi"))
+            }
+
+            dependencies {
+                sparkPlatform("org.apache.kyuubi:kyuubi-spark-connector-hive_2.13")
+            }
+            """.trimIndent()
+        )
+
+        val result = gradleRunner("printSparkPlatform").build()
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":printSparkPlatform")?.outcome)
+        assertTrue(
+            result.output.contains(
+                "dependency=org.apache.kyuubi:kyuubi-spark-connector-hive_2.13:null"
+            )
+        )
+        assertTrue(
+            result.output.contains(
+                "constraint=org.apache.kyuubi:kyuubi-spark-connector-hive_2.13:$kyuubiVersion"
             )
         )
     }

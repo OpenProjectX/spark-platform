@@ -20,6 +20,7 @@ hudi = "1.2.0"
 paimon = "1.4.1"
 openlineage = "1.39.0"
 gravitino = "1.3.0"
+kyuubi = "1.11.0"
 gcsConnector = "4.0.4"
 kafkaClients = "3.9.1"
 clouderaScala = "2.12.15"
@@ -55,6 +56,7 @@ spark3Hudi = { module = "org.apache.hudi:hudi-spark3.5-bundle_2.12", version.ref
 spark3Paimon = { module = "org.apache.paimon:paimon-spark-3.5_2.12", version.ref = "paimon" }
 spark3Openlineage = { module = "io.openlineage:openlineage-spark_2.12", version.ref = "openlineage" }
 spark3Gravitino = { module = "org.apache.gravitino:gravitino-spark-connector-runtime-3.5_2.12", version.ref = "gravitino" }
+spark3KyuubiSparkConnectorHive = { module = "org.apache.kyuubi:kyuubi-spark-connector-hive_2.12", version.ref = "kyuubi" }
 spark3Kafka = { module = "org.apache.spark:spark-sql-kafka-0-10_2.12", version.ref = "spark3" }
 sparkKafkaClients = { module = "org.apache.kafka:kafka-clients", version.ref = "kafkaClients" }
 icebergAwsBundle = { module = "org.apache.iceberg:iceberg-aws-bundle", version.ref = "iceberg" }
@@ -71,6 +73,7 @@ spark3Scala213Repl = { module = "org.apache.spark:spark-repl_2.13", version.ref 
 spark3Scala213Iceberg = { module = "org.apache.iceberg:iceberg-spark-runtime-3.5_2.13", version.ref = "iceberg" }
 spark3Scala213Openlineage = { module = "io.openlineage:openlineage-spark_2.13", version.ref = "openlineage" }
 spark3Scala213Gravitino = { module = "org.apache.gravitino:gravitino-spark-connector-runtime-3.5_2.13", version.ref = "gravitino" }
+spark3Scala213KyuubiSparkConnectorHive = { module = "org.apache.kyuubi:kyuubi-spark-connector-hive_2.13", version.ref = "kyuubi" }
 spark3Scala213Kafka = { module = "org.apache.spark:spark-sql-kafka-0-10_2.13", version.ref = "spark3-scala213" }
 
 spark4Core = { module = "org.apache.spark:spark-core_2.13", version.ref = "spark4" }
@@ -131,7 +134,11 @@ spark-platform-spark3-variant-iceberg = ["spark3Iceberg"]
 spark-platform-spark3-variant-hudi = ["spark3Hudi"]
 spark-platform-spark3-variant-paimon = ["spark3Paimon"]
 spark-platform-spark3-variant-openlineage = ["spark3Openlineage"]
-spark-platform-spark3-variant-gravitino = ["spark3Gravitino"]
+spark-platform-spark3-variant-gravitino = [
+    "spark3Gravitino",
+    "spark3KyuubiSparkConnectorHive",
+]
+spark-platform-spark3-variant-kyuubi = ["spark3KyuubiSparkConnectorHive"]
 spark-base-spark3-runtime = [
     "spark3Core",
     "spark3Sql",
@@ -161,7 +168,11 @@ spark-platform-spark3-scala213-managed = [
 ]
 spark-platform-spark3-scala213-variant-iceberg = ["spark3Scala213Iceberg"]
 spark-platform-spark3-scala213-variant-openlineage = ["spark3Scala213Openlineage"]
-spark-platform-spark3-scala213-variant-gravitino = ["spark3Scala213Gravitino"]
+spark-platform-spark3-scala213-variant-gravitino = [
+    "spark3Scala213Gravitino",
+    "spark3Scala213KyuubiSparkConnectorHive",
+]
+spark-platform-spark3-scala213-variant-kyuubi = ["spark3Scala213KyuubiSparkConnectorHive"]
 spark-base-spark3-scala213-runtime = [
     "spark3Scala213Core",
     "spark3Scala213Sql",

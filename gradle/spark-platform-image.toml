@@ -21,8 +21,8 @@ repository = "ghcr.io/openprojectx/spark"
 suffix = "-java17-python3-r-ubuntu"
 
 [defaultVariants]
-spark3 = ["iceberg", "hudi", "paimon", "openlineage", "gravitino"]
-spark3-scala213 = ["iceberg", "openlineage", "gravitino"]
+spark3 = ["iceberg", "hudi", "paimon", "openlineage", "gravitino", "kyuubi"]
+spark3-scala213 = ["iceberg", "openlineage", "gravitino", "kyuubi"]
 spark4 = ["iceberg", "hudi", "paimon", "openlineage"]
 cloudera = ["iceberg"]
 
