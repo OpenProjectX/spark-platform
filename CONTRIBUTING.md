@@ -139,9 +139,10 @@ Examples:
 - `hudi`
 - `paimon`
 - `openlineage`
+- `gravitino` (Spark 3.5 only; separate Scala 2.12 and 2.13 artifacts)
 
-Variants are compatibility-bearing. Iceberg/Hudi/Paimon/OpenLineage artifacts
-often encode Spark and Scala in their module names. Paimon on Spark 3 is a good
+Variants are compatibility-bearing. Iceberg/Hudi/Paimon/OpenLineage/Gravitino
+artifacts often encode Spark and Scala in their module names. Paimon on Spark 3 is a good
 example: it supports Scala 2.12 only, so the variant selection must respect the
 line's Scala binary version and image compatibility.
 

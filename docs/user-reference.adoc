@@ -480,6 +480,8 @@ Optional runtime families currently represented in the catalog:
 * Hudi `1.2.0`
 * Paimon `1.4.1`
 * OpenLineage `1.39.0`
+* Apache Gravitino Spark Connector `1.3.0` for the `spark3` and
+  `spark3-scala213` lines
 
 Optional addon families currently represented in the catalog:
 
@@ -498,6 +500,33 @@ client is not left to dependency mediation.
 Spark Avro `spark-avro` is also part of the line-managed Spark baseline. Its
 artifact uses the selected Scala binary suffix and its version follows the
 selected Spark line.
+
+The `gravitino` variant supplies the Apache Gravitino Spark 3.5 connector that
+matches the selected Scala binary version. Gravitino does not currently support
+Spark 4, so the variant is intentionally absent from the `spark4` line. Select
+and consume it without a version:
+
+[source,kotlin]
+----
+sparkPlatform {
+    line.set("spark3-scala213")
+    variants.set(listOf("gravitino"))
+}
+
+dependencies {
+    sparkPlatform(
+        "org.apache.gravitino:gravitino-spark-connector-runtime-3.5_2.13"
+    )
+}
+----
+
+For a platform image, select the same variant. The connector is then layered
+under `/opt/spark/jars` and the image tag contains `gravitino`. At runtime,
+configure `spark.plugins` with
+`org.apache.gravitino.spark.connector.plugin.GravitinoSparkPlugin` and provide
+the Gravitino URI and metalake through Spark configuration. The connector is
+not part of the `lakehouse` profile; add it explicitly or define a curated
+profile that includes it.
 
 The `cloudera` line is intentionally narrower than the Apache Spark lines. It
 models the Cloudera Spark TCK surface: Spark core/sql/hive, Scala 2.12.15,

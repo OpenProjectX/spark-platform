@@ -13,6 +13,7 @@ class SparkPlatformPluginFunctionalTest {
     private val spark4Version = "4.0.1"
     private val clouderaSparkVersion = "3.3.2.3.3.7190.9-1"
     private val kafkaClientsVersion = "3.9.1"
+    private val gravitinoVersion = "1.3.0"
 
     @field:TempDir
     lateinit var projectDir: File
@@ -153,6 +154,45 @@ class SparkPlatformPluginFunctionalTest {
         assertTrue(result.output.contains("constraint=org.apache.spark:spark-sql_2.12:$spark3Version"))
         assertTrue(result.output.contains("constraint=org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.10.0"))
         assertTrue(result.output.contains("constraint=org.apache.paimon:paimon-spark-3.5_2.12:1.4.1"))
+    }
+
+    @Test
+    fun `gravitino variant follows the Spark 3 Scala binary version`() {
+        writeFixture(
+            """
+            sparkPlatform {
+                line.set("spark3")
+                variants.set(listOf("gravitino"))
+            }
+            """.trimIndent()
+        )
+
+        val scala212Result = gradleRunner("printSparkPlatform").build()
+
+        assertEquals(TaskOutcome.SUCCESS, scala212Result.task(":printSparkPlatform")?.outcome)
+        assertTrue(
+            scala212Result.output.contains(
+                "constraint=org.apache.gravitino:gravitino-spark-connector-runtime-3.5_2.12:$gravitinoVersion"
+            )
+        )
+
+        writeFixture(
+            """
+            sparkPlatform {
+                line.set("spark3-scala213")
+                variants.set(listOf("gravitino"))
+            }
+            """.trimIndent()
+        )
+
+        val scala213Result = gradleRunner("printSparkPlatform").build()
+
+        assertEquals(TaskOutcome.SUCCESS, scala213Result.task(":printSparkPlatform")?.outcome)
+        assertTrue(
+            scala213Result.output.contains(
+                "constraint=org.apache.gravitino:gravitino-spark-connector-runtime-3.5_2.13:$gravitinoVersion"
+            )
+        )
     }
 
     @Test

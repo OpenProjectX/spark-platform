@@ -29,6 +29,7 @@ dependencyResolutionManagement {
         maven(url = "https://repository.cloudera.com/repository/cloudera-repos/")
         mavenCentral()
         gradlePluginPortal()
+        mavenLocal()
     }
 }
 
