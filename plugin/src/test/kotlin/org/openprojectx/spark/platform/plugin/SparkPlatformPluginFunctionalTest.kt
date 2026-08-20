@@ -237,6 +237,34 @@ class SparkPlatformPluginFunctionalTest {
     }
 
     @Test
+    fun `generated constants configure a consumer build without literal ids`() {
+        writeFixture(
+            """
+            sparkPlatform {
+                line.set(org.openprojectx.spark.platform.plugin.SparkLine.SPARK3_SCALA213)
+                variants.set(
+                    listOf(org.openprojectx.spark.platform.plugin.SparkVariant.KYUUBI)
+                )
+                addons.set(
+                    listOf(org.openprojectx.spark.platform.plugin.SparkAddon.HADOOP_AWS)
+                )
+                profile.set(org.openprojectx.spark.platform.plugin.SparkProfile.LAKEHOUSE)
+            }
+            """.trimIndent()
+        )
+
+        val result = gradleRunner("printSparkPlatform").build()
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":printSparkPlatform")?.outcome)
+        assertTrue(
+            result.output.contains(
+                "constraint=org.apache.kyuubi:kyuubi-spark-connector-hive_2.13:$kyuubiVersion"
+            )
+        )
+        assertTrue(result.output.contains("constraint=org.apache.hadoop:hadoop-aws:3.4.2"))
+    }
+
+    @Test
     fun `spark sql kafka is managed by the selected Spark line and Scala binary version`() {
         writeFixture(
             """

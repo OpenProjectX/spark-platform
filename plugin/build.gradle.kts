@@ -1,6 +1,30 @@
+import buildsrc.GenerateSparkPlatformConstants
+import buildsrc.loadPlatformImageConfig
+import org.gradle.api.artifacts.VersionCatalogsExtension
+
 plugins {
     id("buildsrc.convention.kotlin-jvm")
     `java-gradle-plugin`
+}
+
+val libsCatalog = extensions.getByType<VersionCatalogsExtension>().named("libs")
+val platformImageConfig = loadPlatformImageConfig(
+    rootProject.layout.projectDirectory.file("gradle/spark-platform-image.toml").asFile
+) { it.trim() }
+val generateSparkPlatformConstants by tasks.registering(GenerateSparkPlatformConstants::class) {
+    bundleAliases.set(libsCatalog.bundleAliases.sorted())
+    lineIds.set(platformImageConfig.baseImageDefaultsByLine.keys.sorted())
+    profileIds.set(
+        platformImageConfig.profilesByLine.values
+            .flatMap { it.keys }
+            .distinct()
+            .sorted()
+    )
+    outputDirectory.set(layout.buildDirectory.dir("generated/sources/sparkPlatformConstants/java"))
+}
+
+sourceSets.main {
+    java.srcDir(generateSparkPlatformConstants)
 }
 
 dependencies {

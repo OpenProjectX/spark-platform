@@ -147,6 +147,12 @@ artifacts often encode Spark and Scala in their module names. Paimon on Spark 3 
 example: it supports Scala 2.12 only, so the variant selection must respect the
 line's Scala binary version and image compatibility.
 
+The plugin generates `SparkVariant` and `SparkAddon` constants from these
+bundle aliases, and `SparkLine` and `SparkProfile` constants from
+`gradle/spark-platform-image.toml`. Do not maintain a second hard-coded id list.
+Adding or removing TOML configuration updates the public constants on the next
+plugin build.
+
 Catalog ownership:
 
 - `spark-platform-<line>-variant-<variant>` adds optional constraints for that

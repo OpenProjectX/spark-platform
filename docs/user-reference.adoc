@@ -535,9 +535,12 @@ the selected Scala binary version. It can be selected independently:
 
 [source,kotlin]
 ----
+import org.openprojectx.spark.platform.plugin.SparkLine
+import org.openprojectx.spark.platform.plugin.SparkVariant
+
 sparkPlatform {
-    line.set("spark3")
-    variants.set(listOf("kyuubi"))
+    line.set(SparkLine.SPARK3)
+    variants.set(listOf(SparkVariant.KYUUBI))
 }
 
 dependencies {
@@ -552,6 +555,40 @@ variant because the Gravitino connector uses it internally. This prevents
 Gravitino's transitive dependency from drifting to an untested Kyuubi version.
 The Kyuubi Spark SQL engine is intentionally not included: it belongs to a
 Kyuubi server/engine deployment, not a normal Spark application runtime.
+
+== Generated Platform Constants
+
+The plugin publishes generated constants for every configured line, variant,
+addon, and image profile. Kotlin DSL builds can import them and avoid repeating
+string ids:
+
+[source,kotlin]
+----
+import org.openprojectx.spark.platform.plugin.SparkAddon
+import org.openprojectx.spark.platform.plugin.SparkLine
+import org.openprojectx.spark.platform.plugin.SparkProfile
+import org.openprojectx.spark.platform.plugin.SparkVariant
+
+sparkPlatform {
+    line.set(SparkLine.SPARK3_SCALA213)
+    variants.set(listOf(SparkVariant.GRAVITINO, SparkVariant.KYUUBI))
+    addons.set(listOf(SparkAddon.HADOOP_AWS))
+    profile.set(SparkProfile.LAKEHOUSE)
+}
+----
+
+`SparkVariant` and `SparkAddon` are generated from bundle aliases in
+`gradle/libs.versions.toml`. `SparkLine` and `SparkProfile` are generated from
+line and profile names in `gradle/spark-platform-image.toml`. Lower camel case
+and dash-separated ids become upper snake case constants, for example
+`spark3-scala213` becomes
+`SPARK3_SCALA213` and `hadoopAws` becomes `HADOOP_AWS`.
+
+The generated classes are compiled into the published plugin JAR, so consuming
+projects do not need the platform's TOML files. Literal strings remain supported
+for backward compatibility and for downstream custom bundles that are not part
+of this published platform. A constant identifies a configured ID; normal plugin
+validation still rejects combinations that are unsupported by the selected line.
 
 The `cloudera` line is intentionally narrower than the Apache Spark lines. It
 models the Cloudera Spark TCK surface: Spark core/sql/hive, Scala 2.12.15,

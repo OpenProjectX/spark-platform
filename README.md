@@ -50,6 +50,9 @@ app image.
 Apply the plugin and select the platform contract:
 
 ```kotlin
+import org.openprojectx.spark.platform.plugin.SparkLine
+import org.openprojectx.spark.platform.plugin.SparkVariant
+
 plugins {
     application
     java
@@ -57,8 +60,8 @@ plugins {
 }
 
 sparkPlatform {
-    line.set("spark4")
-    variants.set(listOf("iceberg"))
+    line.set(SparkLine.SPARK4)
+    variants.set(listOf(SparkVariant.ICEBERG))
     platformVersion.set("0.1.1-SNAPSHOT")
 }
 
