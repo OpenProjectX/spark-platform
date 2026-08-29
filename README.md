@@ -61,13 +61,13 @@ plugins {
 
 sparkPlatform {
     line.set(SparkLine.SPARK4)
-    variants.set(listOf(SparkVariant.ICEBERG))
+    variants.set(listOf(SparkVariant.OPENLINEAGE))
     platformVersion.set("0.1.1-SNAPSHOT")
 }
 
 dependencies {
     sparkPlatform("org.apache.spark:spark-sql_2.13")
-    sparkPlatform("org.apache.iceberg:iceberg-spark-runtime-4.0_2.13")
+    sparkPlatform("io.openlineage:openlineage-spark_2.13")
 }
 ```
 
@@ -77,13 +77,13 @@ dependency versionless:
 ```kotlin
 sparkPlatform {
     line.set("spark4")
-    variants.set(listOf("iceberg"))
+    variants.set(listOf("openlineage"))
     managedConfigurations.set(listOf("api", "testImplementation"))
 }
 
 dependencies {
     api("org.apache.spark:spark-sql_2.13")
-    testImplementation("org.apache.iceberg:iceberg-spark-runtime-4.0_2.13")
+    testImplementation("io.openlineage:openlineage-spark_2.13")
 }
 ```
 
@@ -112,7 +112,7 @@ See the standalone `examples` Gradle build for runnable applications.
 
 ```bash
 cd examples
-env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4-iceberg:run --no-configuration-cache
+env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4-sql:run --no-configuration-cache
 env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark3-paimon:run --no-configuration-cache
 ```
 
@@ -143,7 +143,7 @@ Run the Spark 4 example with:
 
 ```bash
 cd examples
-env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4-iceberg:run --no-configuration-cache
+env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4-sql:run --no-configuration-cache
 ```
 
 Run the Spark 3 Paimon example with:
@@ -162,14 +162,19 @@ env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuildPlatf
 
 Platform images use project-owned clean Spark base images such as
 `ghcr.io/openprojectx/spark:3.5.8-scala2.12-java17-python3-r-ubuntu` and
-`ghcr.io/openprojectx/spark:4.0.1-scala2.13-java17-python3-r-ubuntu`, then layer
+`ghcr.io/openprojectx/spark:4.2.0-scala2.13-java17-python3-r-ubuntu`, then layer
 only the selected variant and addon jars into `/opt/spark/jars`. Spark, Scala,
 Hadoop, and the core runtime jars are assembled by `spark-base-image` from the
 Gradle version catalog and BOM, so `hadoopSpark3` and `hadoopSpark4` are real
 base image contents rather than classpath overrides of jars bundled by an
 upstream Spark image. Curated images use profile tags such as
-`spark4-lakehouse-0.1.1-SNAPSHOT`; explicit custom images include selected
+`spark3-lakehouse-0.1.1-SNAPSHOT`; explicit custom images include selected
 variants and addons in the tag.
+
+Spark 4.2 currently exposes the OpenLineage variant. Iceberg 1.11, Hudi 1.2,
+and Paimon 1.4 do not publish Spark 4.2 runtime artifacts; selecting those
+variants on `spark4` fails during catalog configuration instead of producing an
+image with a known binary-incompatible connector.
 
 The `spark-base-image` module publishes project-owned base images to
 `ghcr.io/openprojectx/spark` for every supported Spark line. It first builds a
@@ -187,14 +192,14 @@ Build one explicit variant set with:
 ```bash
 env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuild \
   -PsparkPlatform.line=spark4 \
-  -PsparkPlatform.variants=iceberg,hudi
+  -PsparkPlatform.variants=openlineage
 ```
 
 `jibDockerBuild` writes to the local Docker daemon. Inspect a built image with:
 
 ```bash
-docker inspect ghcr.io/openprojectx/spark-platform:spark4-iceberg-0.1.1-SNAPSHOT
-docker run --rm --entrypoint sh ghcr.io/openprojectx/spark-platform:spark4-iceberg-0.1.1-SNAPSHOT \
+docker inspect ghcr.io/openprojectx/spark-platform:spark4-openlineage-hadoopaws-0.1.1-SNAPSHOT
+docker run --rm --entrypoint sh ghcr.io/openprojectx/spark-platform:spark4-openlineage-hadoopaws-0.1.1-SNAPSHOT \
   -c 'ls -1 /opt/spark/jars | sort'
 ```
 

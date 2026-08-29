@@ -83,7 +83,7 @@ Application projects select the platform:
 [source,kotlin]
 ----
 sparkPlatform {
-    line.set("spark4")
+    line.set("spark3-scala213")
     variants.set(listOf("iceberg"))
     addons.set(listOf("hadoopAws"))
     managedConfigurations.set(listOf("api", "testImplementation"))
@@ -92,7 +92,7 @@ sparkPlatform {
 
 The plugin then adds the platform-owned dependencies from
 `gradle/libs.versions.toml` as strict constraints. For the example above, the
-selected constraint bundles include Spark 4, Hadoop for Spark 4, and the Spark 4
+selected constraint bundles include Spark 3.5, Hadoop for Spark 3, and the Spark 3.5
 Iceberg runtime. Addons such as `hadoopAws` add platform-owned supplemental
 libraries without becoming Spark/Scala compatibility dimensions.
 
@@ -109,7 +109,7 @@ using the `sparkPlatform` configuration without versions:
 ----
 dependencies {
     sparkPlatform("org.apache.spark:spark-sql_2.13")
-    sparkPlatform("org.apache.iceberg:iceberg-spark-runtime-4.0_2.13")
+    sparkPlatform("org.apache.iceberg:iceberg-spark-runtime-3.5_2.13")
 }
 ----
 
@@ -125,14 +125,14 @@ plugins {
 }
 
 sparkPlatform {
-    line.set("spark4")
+    line.set("spark3-scala213")
     variants.set(listOf("iceberg"))
     managedConfigurations.set(listOf("api", "testImplementation"))
 }
 
 dependencies {
     api("org.apache.spark:spark-sql_2.13")
-    testImplementation("org.apache.iceberg:iceberg-spark-runtime-4.0_2.13")
+    testImplementation("org.apache.iceberg:iceberg-spark-runtime-3.5_2.13")
 }
 ----
 
@@ -157,7 +157,7 @@ plugins {
 }
 
 sparkPlatform {
-    line.set("spark4")
+    line.set("spark3-scala213")
     variants.set(listOf("iceberg"))
     managedConfigurations.set(
         listOf(
@@ -173,7 +173,7 @@ dependencies {
     compileOnly("org.apache.spark:spark-hive_2.13")
 
     testImplementation("org.apache.spark:spark-sql_2.13")
-    testImplementation("org.apache.iceberg:iceberg-spark-runtime-4.0_2.13")
+    testImplementation("org.apache.iceberg:iceberg-spark-runtime-3.5_2.13")
 }
 ----
 
@@ -183,7 +183,7 @@ other platform-owned types to downstream consumers:
 [source,kotlin]
 ----
 sparkPlatform {
-    line.set("spark4")
+    line.set("spark3-scala213")
     variants.set(listOf("iceberg"))
     managedConfigurations.set(listOf("api", "compileOnly", "testImplementation"))
 }
@@ -210,7 +210,7 @@ Hudi, Paimon, or OpenLineage artifacts in build scripts. To change that stack,
 change the platform catalog and platform image, then let applications select the
 updated line, variant, or addon. Variants describe compatibility-bearing Spark
 runtime families. Addons describe supplemental platform-owned dependency packs.
-Curated platform images use profile tags such as `spark4-lakehouse-<version>`
+Curated platform images use profile tags such as `spark3-lakehouse-<version>`
 so common addons do not make tags grow without bound.
 
 Application-owned libraries still use normal Gradle configurations:
@@ -233,14 +233,14 @@ the selected line, variant, or addon. For example, this is valid:
 [source,kotlin]
 ----
 sparkPlatform {
-    line.set("spark4")
+    line.set("spark3-scala213")
     variants.set(listOf("iceberg"))
     managedConfigurations.set(listOf("api", "testImplementation"))
 }
 
 dependencies {
     api("org.apache.spark:spark-sql_2.13")
-    testImplementation("org.apache.iceberg:iceberg-spark-runtime-4.0_2.13")
+    testImplementation("org.apache.iceberg:iceberg-spark-runtime-3.5_2.13")
 }
 ----
 
@@ -264,7 +264,7 @@ the duplicate-classpath risk.
 Class-not-found behavior follows the same rule:
 
 * If the app declares `sparkPlatform("org.apache.spark:spark-sql-kafka-0-10_2.13")`
-  on `spark4`, the app image expects the Spark base image to provide that jar.
+  on a Scala 2.13 line, the app image expects the Spark base image to provide that jar.
 * If the app declares an Iceberg API with `sparkPlatform(...)`, the app must
   select `variants.set(listOf("iceberg"))` and run on a platform image built
   with Iceberg.
@@ -328,7 +328,7 @@ Configure the plugin with the `sparkPlatform` extension.
 [source,kotlin]
 ----
 sparkPlatform {
-    line.set("spark4")
+    line.set("spark3")
     profile.set("lakehouse")
     variants.set(listOf("iceberg"))
     addons.set(listOf("hadoopAws"))
@@ -465,8 +465,8 @@ The current version matrix is defined in `gradle/libs.versions.toml`.
 | `3.4.2`
 
 | `spark4`
-| `4.0.1`
-| `3.4.2`
+| `4.2.0`
+| `3.5.0`
 
 | `cloudera`
 | `3.3.2.3.3.7190.9-1`
@@ -475,7 +475,7 @@ The current version matrix is defined in `gradle/libs.versions.toml`.
 
 Optional runtime families currently represented in the catalog:
 
-* Iceberg `1.10.0`
+* Iceberg `1.11.0` for the `spark3` and `spark3-scala213` lines
 * Iceberg `1.8.1` for the `cloudera` line
 * Hudi `1.2.0`
 * Paimon `1.4.1`
@@ -487,17 +487,36 @@ Optional runtime families currently represented in the catalog:
 
 Optional addon families currently represented in the catalog:
 
-* Hadoop AWS `3.4.2`
+* Hadoop AWS `3.4.2` for the `spark3` and `spark3-scala213` lines
+* Hadoop AWS `3.5.0` for the `spark4` line
 * Hadoop AWS `3.1.1.7.1.9.14-2` for the `cloudera` line
 * Hadoop GCS connector `4.0.4`
-* Iceberg AWS bundle `1.10.0`
+* Iceberg AWS bundle `1.11.0` for the `spark3` and `spark3-scala213` lines
 * Iceberg AWS bundle `1.8.1` for the `cloudera` line
 
 Spark SQL Kafka `spark-sql-kafka-0-10` is part of the line-managed Spark
 baseline. Its version follows the selected Spark line and the clean Spark base
 runtime image provides the matching jar. The platform also pins
-`org.apache.kafka:kafka-clients` to `3.9.1`, so Spark Kafka's transitive Kafka
+`org.apache.kafka:kafka-clients` to `3.9.2`, so Spark Kafka's transitive Kafka
 client is not left to dependency mediation.
+
+The `spark4` baseline also constrains Scala library, reflect, and compiler to
+`2.13.18`, matching Spark 4.2.0. These constraints prevent another Scala
+dependency from moving the application or base image away from Spark's binary
+and patch-level runtime contract.
+
+The `spark4` line currently exposes OpenLineage as its connector variant.
+Iceberg 1.11 publishes Spark 4.0 and 4.1 runtime artifacts, but no Spark 4.2
+artifact; its latest Spark 4.1 runtime fails on Spark 4.2 because Spark changed
+`org.apache.spark.sql.connector.catalog.View` from an interface to a class.
+Hudi 1.2 and Paimon 1.4 likewise do not publish Spark 4.2 runtimes. Their
+Spark 4 variants are therefore absent from the catalog. Selecting one fails at
+configuration time instead of deferring a binary compatibility failure to
+production.
+
+Release publishing uses the curated `spark4-openlineage-<version>` profile. It
+contains the OpenLineage variant and Hadoop AWS addon, keeping Spark 4.2 in the
+release image set without claiming unsupported table-format runtimes.
 
 Spark Avro `spark-avro` is also part of the line-managed Spark baseline. Its
 artifact uses the selected Scala binary suffix and its version follows the
@@ -613,7 +632,7 @@ Examples:
 [source,text]
 ----
 spark-platform-spark4-managed
-spark-platform-spark4-variant-iceberg
+spark-platform-spark4-variant-openlineage
 spark-platform-spark4-addon-hadoopAws
 spark-platform-spark5-variant-legacy-managed
 ----
@@ -661,7 +680,7 @@ To force a transitive dependency version, add that transitive module as a
 version-catalog alias and include it in the owning bundle. For example,
 `sparkKafkaClients` is included in the line-managed and base-runtime bundles so
 both application resolution and Spark base image assembly use
-`org.apache.kafka:kafka-clients:3.9.1`.
+`org.apache.kafka:kafka-clients:3.9.2`.
 
 Bundle scope summary:
 
@@ -799,7 +818,7 @@ Build one explicit variant set:
 [source,bash]
 ----
 env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuild \
-  -PsparkPlatform.line=spark4 \
+  -PsparkPlatform.line=spark3 \
   -PsparkPlatform.variants=iceberg,hudi,paimon,openlineage
 ----
 
@@ -808,7 +827,7 @@ Build one explicit variant plus addon set:
 [source,bash]
 ----
 env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuild \
-  -PsparkPlatform.line=spark4 \
+  -PsparkPlatform.line=spark3 \
   -PsparkPlatform.variants=iceberg,openlineage \
   -PsparkPlatform.addons=hadoopAws
 ----
@@ -818,7 +837,7 @@ Build only one curated profile tag:
 [source,bash]
 ----
 env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuildPlatformImages \
-  -PsparkPlatform.line=spark4 \
+  -PsparkPlatform.line=spark3 \
   -PsparkPlatform.profile=lakehouse \
   -PsparkPlatform.buildIndividualImages=false \
   -PsparkPlatform.buildCombinedImages=true
@@ -829,7 +848,7 @@ Build only individual tags:
 [source,bash]
 ----
 env GRADLE_USER_HOME=/data/.gradle ./gradlew :platform-image:jibDockerBuildPlatformImages \
-  -PsparkPlatform.line=spark4 \
+  -PsparkPlatform.line=spark3 \
   -PsparkPlatform.variants=iceberg,hudi \
   -PsparkPlatform.buildIndividualImages=true \
   -PsparkPlatform.buildCombinedImages=false
@@ -855,8 +874,8 @@ a tar file in the build directory.
 [source,bash]
 ----
 docker images ghcr.io/openprojectx/spark-platform
-docker inspect ghcr.io/openprojectx/spark-platform:spark4-iceberg-0.1.1-SNAPSHOT
-docker run --rm --entrypoint sh ghcr.io/openprojectx/spark-platform:spark4-iceberg-0.1.1-SNAPSHOT \
+docker inspect ghcr.io/openprojectx/spark-platform:spark4-openlineage-hadoopaws-0.1.1-SNAPSHOT
+docker run --rm --entrypoint sh ghcr.io/openprojectx/spark-platform:spark4-openlineage-hadoopaws-0.1.1-SNAPSHOT \
   -c 'ls -1 /opt/spark/jars | sort'
 ----
 
@@ -912,10 +931,10 @@ Current runtime base images:
   `3.5.8-scala2.13-java17-python3-r-ubuntu`
 
 | `spark4`
-| `4.0.1-scala2.13-java17-ubuntu`,
-  `4.0.1-scala2.13-java17-python3-ubuntu`,
-  `4.0.1-scala2.13-java17-r-ubuntu`,
-  `4.0.1-scala2.13-java17-python3-r-ubuntu`
+| `4.2.0-scala2.13-java17-ubuntu`,
+  `4.2.0-scala2.13-java17-python3-ubuntu`,
+  `4.2.0-scala2.13-java17-r-ubuntu`,
+  `4.2.0-scala2.13-java17-python3-r-ubuntu`
 |===
 
 Each runtime tag also has a matching layout tag with `layout` before `ubuntu`,
@@ -1009,33 +1028,33 @@ A Spark Operator application uses that image as the Spark container image:
 apiVersion: spark.apache.org/v1
 kind: SparkApplication
 metadata:
-  name: spark4-iceberg
+  name: spark4-sql
 spec:
-  mainClass: "org.openprojectx.spark.platform.examples.spark4.Spark4IcebergExample"
+  mainClass: "org.openprojectx.spark.platform.examples.spark4.Spark4SqlExample"
   jars: "local:///opt/spark/app/app.jar"
   sparkConf:
-    spark.kubernetes.container.image: "org.openprojectx.spark.platform.examples/spark4-iceberg:0.1.1-snapshot"
+    spark.kubernetes.container.image: "org.openprojectx.spark.platform.examples/spark4-sql:0.1.1-snapshot"
     spark.kubernetes.authenticate.driver.serviceAccountName: "spark"
   runtimeVersions:
-    sparkVersion: "4.0.1"
+    sparkVersion: "4.2.0"
 ----
 
-== Spark 4 Iceberg Example
+== Spark 4 SQL Example
 
-The runnable example is in `examples/spark4-iceberg`.
+The runnable example is in `examples/spark4-sql`.
 
 [source,bash]
 ----
 cd examples
-env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4-iceberg:run --no-configuration-cache
+env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4-sql:run --no-configuration-cache
 ----
 
 The example:
 
 * selects `spark4`
-* adds versionless `sparkPlatform` dependencies for Spark SQL and Iceberg
-* receives Spark SQL, Hadoop, and Iceberg versions from the selected platform constraints
-* uses a local Iceberg Hadoop catalog
+* adds a versionless `sparkPlatform` dependency for Spark SQL
+* receives Spark SQL, Scala, and Hadoop versions from the selected platform constraints
+* runs a baseline Spark SQL query
 * uses Gradle Java toolchains for JDK 17 execution
 
 == Spark 3 Paimon Example

@@ -9,15 +9,15 @@ local plugin and platform BOM.
 | Project | Description |
 | --- | --- |
 | `:spark3-paimon` | Spark 3 + Paimon example using Scala 2.12 artifacts. |
-| `:spark4-iceberg` | Spark 4 + Iceberg example using a local Iceberg Hadoop catalog. |
+| `:spark4-sql` | Spark 4 baseline SQL example. |
 
 ## Commands
 
 Run from this directory:
 
 ```bash
-env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4-iceberg:compileJava --no-configuration-cache
-env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4-iceberg:run --no-configuration-cache
+env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4-sql:compileJava --no-configuration-cache
+env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4-sql:run --no-configuration-cache
 env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark3-paimon:run --no-configuration-cache
 env GRADLE_USER_HOME=/data/.gradle ../gradlew integration --no-configuration-cache
 ```

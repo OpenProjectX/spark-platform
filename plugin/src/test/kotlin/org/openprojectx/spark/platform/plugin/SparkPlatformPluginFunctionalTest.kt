@@ -10,9 +10,9 @@ import java.io.File
 
 class SparkPlatformPluginFunctionalTest {
     private val spark3Version = "3.5.8"
-    private val spark4Version = "4.0.1"
+    private val spark4Version = "4.2.0"
     private val clouderaSparkVersion = "3.3.2.3.3.7190.9-1"
-    private val kafkaClientsVersion = "3.9.1"
+    private val kafkaClientsVersion = "3.9.2"
     private val gravitinoVersion = "1.3.0"
     private val kyuubiVersion = "1.11.0"
 
@@ -54,13 +54,13 @@ class SparkPlatformPluginFunctionalTest {
 
             sparkPlatform {
                 line.set("spark4")
-                variants.set(listOf("iceberg"))
+                variants.set(listOf("openlineage"))
                 managedConfigurations.set(listOf("api", "testImplementation"))
             }
 
             dependencies {
                 add("api", "org.apache.spark:spark-sql_2.13")
-                add("testImplementation", "org.apache.iceberg:iceberg-spark-runtime-4.0_2.13")
+                add("testImplementation", "io.openlineage:openlineage-spark_2.13")
             }
             """.trimIndent()
         )
@@ -72,7 +72,7 @@ class SparkPlatformPluginFunctionalTest {
         assertTrue(result.output.contains("apiExtends=sparkPlatform,sparkPlatformBom"))
         assertTrue(Regex("testImplementationExtends=.*sparkPlatform.*sparkPlatformBom").containsMatchIn(result.output))
         assertTrue(result.output.contains("constraint=org.apache.spark:spark-sql_2.13:$spark4Version"))
-        assertTrue(result.output.contains("constraint=org.apache.iceberg:iceberg-spark-runtime-4.0_2.13:1.10.0"))
+        assertTrue(result.output.contains("constraint=io.openlineage:openlineage-spark_2.13:1.39.0"))
     }
 
     @Test
@@ -81,12 +81,12 @@ class SparkPlatformPluginFunctionalTest {
             """
             sparkPlatform {
                 line.set("spark4")
-                variants.set(listOf("iceberg"))
+                variants.set(listOf("openlineage"))
             }
 
             dependencies {
                 sparkPlatform("org.apache.spark:spark-sql_2.13")
-                sparkPlatform("org.apache.iceberg:iceberg-spark-runtime-4.0_2.13")
+                sparkPlatform("io.openlineage:openlineage-spark_2.13")
             }
             """.trimIndent()
         )
@@ -95,9 +95,9 @@ class SparkPlatformPluginFunctionalTest {
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":printSparkPlatform")?.outcome)
         assertTrue(result.output.contains("dependency=org.apache.spark:spark-sql_2.13:null"))
-        assertTrue(result.output.contains("dependency=org.apache.iceberg:iceberg-spark-runtime-4.0_2.13:null"))
+        assertTrue(result.output.contains("dependency=io.openlineage:openlineage-spark_2.13:null"))
         assertTrue(result.output.contains("constraint=org.apache.spark:spark-sql_2.13:$spark4Version"))
-        assertTrue(result.output.contains("constraint=org.apache.iceberg:iceberg-spark-runtime-4.0_2.13:1.10.0"))
+        assertTrue(result.output.contains("constraint=io.openlineage:openlineage-spark_2.13:1.39.0"))
     }
 
     @Test
@@ -115,7 +115,8 @@ class SparkPlatformPluginFunctionalTest {
         assertEquals(TaskOutcome.SUCCESS, result.task(":printSparkPlatform")?.outcome)
         assertTrue(result.output.contains("dependencyCount=0"))
         assertTrue(result.output.contains("constraint=org.apache.spark:spark-sql_2.13:$spark4Version"))
-        assertTrue(result.output.contains("constraint=org.apache.hadoop:hadoop-client-api:3.4.2"))
+        assertTrue(result.output.contains("constraint=org.apache.hadoop:hadoop-client-api:3.5.0"))
+        assertTrue(result.output.contains("constraint=org.scala-lang:scala-library:2.13.18"))
     }
 
     @Test
@@ -153,7 +154,7 @@ class SparkPlatformPluginFunctionalTest {
         assertEquals(TaskOutcome.SUCCESS, result.task(":printSparkPlatform")?.outcome)
         assertTrue(result.output.contains("dependencyCount=0"))
         assertTrue(result.output.contains("constraint=org.apache.spark:spark-sql_2.12:$spark3Version"))
-        assertTrue(result.output.contains("constraint=org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.10.0"))
+        assertTrue(result.output.contains("constraint=org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.11.0"))
         assertTrue(result.output.contains("constraint=org.apache.paimon:paimon-spark-3.5_2.12:1.4.1"))
     }
 
@@ -288,8 +289,7 @@ class SparkPlatformPluginFunctionalTest {
         writeFixture(
             """
             sparkPlatform {
-                line.set("spark4")
-                variants.set(listOf("iceberg"))
+                line.set("spark3")
                 addons.set(listOf("hadoopAws", "icebergAws"))
             }
             """.trimIndent()
@@ -298,9 +298,8 @@ class SparkPlatformPluginFunctionalTest {
         val result = gradleRunner("printSparkPlatform").build()
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":printSparkPlatform")?.outcome)
-        assertTrue(result.output.contains("constraint=org.apache.iceberg:iceberg-spark-runtime-4.0_2.13:1.10.0"))
         assertTrue(result.output.contains("constraint=org.apache.hadoop:hadoop-aws:3.4.2"))
-        assertTrue(result.output.contains("constraint=org.apache.iceberg:iceberg-aws-bundle:1.10.0"))
+        assertTrue(result.output.contains("constraint=org.apache.iceberg:iceberg-aws-bundle:1.11.0"))
     }
 
     @Test
@@ -354,7 +353,7 @@ class SparkPlatformPluginFunctionalTest {
         assertEquals(TaskOutcome.SUCCESS, result.task(":printSparkPlatform")?.outcome)
         assertTrue(result.output.contains("dependencyCount=0"))
         assertTrue(result.output.contains("constraint=org.apache.spark:spark-sql_2.13:$spark3Version"))
-        assertTrue(result.output.contains("constraint=org.apache.iceberg:iceberg-spark-runtime-3.5_2.13:1.10.0"))
+        assertTrue(result.output.contains("constraint=org.apache.iceberg:iceberg-spark-runtime-3.5_2.13:1.11.0"))
         assertTrue(result.output.contains("constraint=org.apache.hadoop:hadoop-client-api:3.4.2"))
         assertTrue(!result.output.contains("constraint=org.apache.spark:spark-sql_2.12:$spark3Version"))
     }
@@ -365,7 +364,7 @@ class SparkPlatformPluginFunctionalTest {
             """
             sparkPlatform {
                 line.set("spark4")
-                variants.set(listOf("iceberg"))
+                variants.set(listOf("openlineage"))
                 addons.set(listOf("hadoopAws"))
                 platformImage.set("registry.example.com/spark-platform")
             }
@@ -375,7 +374,7 @@ class SparkPlatformPluginFunctionalTest {
         val result = gradleRunner("printJib").build()
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":printJib")?.outcome)
-        assertTrue(result.output.contains("fromImage=docker://registry.example.com/spark-platform:spark4-iceberg-hadoopaws-1.2.3"))
+        assertTrue(result.output.contains("fromImage=docker://registry.example.com/spark-platform:spark4-openlineage-hadoopaws-1.2.3"))
         assertTrue(result.output.contains("jibJvmFlag=--add-opens=java.base/java.nio=ALL-UNNAMED"))
         assertTrue(result.output.contains("jibExtraClasspath=/opt/spark/jars/*"))
         assertTrue(result.output.contains("jibContainerizingMode=packaged"))
@@ -386,13 +385,33 @@ class SparkPlatformPluginFunctionalTest {
     }
 
     @Test
+    fun `spark4 rejects connector variants without a Spark 4_2 runtime`() {
+        writeFixture(
+            """
+            sparkPlatform {
+                line.set("spark4")
+                variants.set(listOf("iceberg"))
+            }
+            """.trimIndent()
+        )
+
+        val result = gradleRunner("printSparkPlatform").buildAndFail()
+
+        assertTrue(
+            result.output.contains(
+                "Spark Platform catalog bundle 'spark-platform-spark4-variant-iceberg' is missing"
+            )
+        )
+    }
+
+    @Test
     fun `plugin can use a curated profile tag for application images`() {
         writeFixture(
             """
             sparkPlatform {
                 line.set("spark4")
-                profile.set("lakehouse")
-                variants.set(listOf("iceberg", "openlineage"))
+                profile.set("openlineage")
+                variants.set(listOf("openlineage"))
                 addons.set(listOf("hadoopAws"))
                 platformImage.set("registry.example.com/spark-platform")
             }
@@ -402,7 +421,7 @@ class SparkPlatformPluginFunctionalTest {
         val result = gradleRunner("printJib").build()
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":printJib")?.outcome)
-        assertTrue(result.output.contains("fromImage=docker://registry.example.com/spark-platform:spark4-lakehouse-1.2.3"))
+        assertTrue(result.output.contains("fromImage=docker://registry.example.com/spark-platform:spark4-openlineage-1.2.3"))
     }
 
     @Test
@@ -411,7 +430,7 @@ class SparkPlatformPluginFunctionalTest {
             """
             sparkPlatform {
                 line.set("spark4")
-                variants.set(listOf("iceberg"))
+                variants.set(listOf("openlineage"))
                 platformImage.set("registry.example.com/spark-platform")
             }
             """.trimIndent()
@@ -420,7 +439,7 @@ class SparkPlatformPluginFunctionalTest {
         val result = gradleRunner("printJib", "-PsparkPlatform.officialBuild=true").build()
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":printJib")?.outcome)
-        assertTrue(result.output.contains("fromImage=registry.example.com/spark-platform:spark4-iceberg-1.2.3"))
+        assertTrue(result.output.contains("fromImage=registry.example.com/spark-platform:spark4-openlineage-1.2.3"))
     }
 
     @Test
@@ -429,7 +448,7 @@ class SparkPlatformPluginFunctionalTest {
             """
             sparkPlatform {
                 line.set("spark4")
-                variants.set(listOf("iceberg"))
+                variants.set(listOf("openlineage"))
                 platformImage.set("registry.example.com/spark-platform")
                 localPlatformImage.set(true)
             }
@@ -439,7 +458,7 @@ class SparkPlatformPluginFunctionalTest {
         val result = gradleRunner("printJib", "-PsparkPlatform.officialBuild=true").build()
 
         assertEquals(TaskOutcome.SUCCESS, result.task(":printJib")?.outcome)
-        assertTrue(result.output.contains("fromImage=docker://registry.example.com/spark-platform:spark4-iceberg-1.2.3"))
+        assertTrue(result.output.contains("fromImage=docker://registry.example.com/spark-platform:spark4-openlineage-1.2.3"))
     }
 
     @Test
@@ -448,7 +467,7 @@ class SparkPlatformPluginFunctionalTest {
             """
             sparkPlatform {
                 line.set("spark4")
-                variants.set(listOf("iceberg"))
+                variants.set(listOf("openlineage"))
             }
             """.trimIndent()
         )
@@ -465,7 +484,6 @@ class SparkPlatformPluginFunctionalTest {
             """
             sparkPlatform {
                 line.set("spark4")
-                variants.set(listOf("iceberg"))
             }
 
             dependencies {

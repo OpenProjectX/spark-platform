@@ -9,7 +9,12 @@ javaPlatform {
     allowDependencies()
 }
 
-val platformLine: Provider<String> = providers.gradleProperty("sparkPlatform.line").orElse("spark3")
+// Base-image builds select their line through sparkBaseImage.line. Falling back
+// to that property keeps the parameterized BOM on the same line instead of
+// silently applying the default Spark 3 constraints to a Spark 4 runtime.
+val platformLine: Provider<String> = providers.gradleProperty("sparkPlatform.line")
+    .orElse(providers.gradleProperty("sparkBaseImage.line"))
+    .orElse("spark3")
 val platformVariants: Provider<List<String>> = providers.gradleProperty("sparkPlatform.variants")
     .map { parseVariants(it) }
     .orElse(emptyList())

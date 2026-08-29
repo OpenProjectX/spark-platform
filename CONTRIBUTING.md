@@ -164,13 +164,13 @@ User-facing DSL:
 
 ```kotlin
 sparkPlatform {
-    line.set("spark4")
+    line.set("spark3-scala213")
     variants.set(listOf("iceberg"))
 }
 
 dependencies {
     sparkPlatform("org.apache.spark:spark-sql_2.13")
-    sparkPlatform("org.apache.iceberg:iceberg-spark-runtime-4.0_2.13")
+    sparkPlatform("org.apache.iceberg:iceberg-spark-runtime-3.5_2.13")
 }
 ```
 
@@ -208,7 +208,7 @@ User-facing DSL:
 ```kotlin
 sparkPlatform {
     line.set("spark4")
-    variants.set(listOf("iceberg"))
+    variants.set(listOf("openlineage"))
     addons.set(listOf("hadoopAws"))
 }
 
@@ -218,7 +218,7 @@ dependencies {
 ```
 
 Explicit image tags include addons, for example
-`spark4-iceberg-hadoopaws-<version>`. Published release images should normally
+`spark4-openlineage-hadoopaws-<version>`. Published release images should normally
 prefer curated profile tags when many addons are included.
 
 ### Profile
@@ -245,7 +245,7 @@ User-facing DSL for an application image that wants the curated base image tag:
 
 ```kotlin
 sparkPlatform {
-    line.set("spark4")
+    line.set("spark3")
     profile.set("lakehouse")
     variants.set(listOf("iceberg"))
     addons.set(listOf("hadoopAws"))
@@ -253,7 +253,7 @@ sparkPlatform {
 ```
 
 The profile controls the default application base image tag, for example
-`spark4-lakehouse-<platformVersion>`. The variants/addons still control
+`spark3-lakehouse-<platformVersion>`. The variants/addons still control
 compile/runtime constraints and local JVM test or smoke runs.
 
 ### Scope And Packaging
@@ -276,7 +276,7 @@ It is not the default contract for Spark-owned runtime jars.
 | `spark-base-<line>-runtime` | Not consumed by application builds. | Builds the clean Spark base image runtime jar set: Spark, Scala, Hadoop, Spark SQL Kafka, Spark Avro, Kubernetes/YARN/MLlib/REPL modules, and baseline transitives. |
 | `spark-platform-<line>-variant-<variant>` | Strict constraints when the variant is selected. | Selected variant jars are layered by `platform-image` into `/opt/spark/jars`. |
 | `spark-platform-<line>-addon-<addon>` | Strict constraints when the addon is selected. | Selected addon jars are layered by `platform-image` into `/opt/spark/jars`. |
-| `profile` | Selects a curated platform image tag. It does not replace `variants` or `addons` for compile intent. | Chooses a curated platform image combination, such as `spark4-lakehouse-<version>`. |
+| `profile` | Selects a curated platform image tag. It does not replace `variants` or `addons` for compile intent. | Chooses a curated platform image combination, such as `spark3-lakehouse-<version>`. |
 
 Application image packaging follows the same boundary:
 
@@ -372,14 +372,15 @@ The catalog has four relevant sections.
 [versions]
 spark3 = "3.5.8"
 "spark3-scala213" = "3.5.8"
-spark4 = "4.0.1"
+spark4 = "4.2.0"
 cloudera = "3.3.2.3.3.7190.9-1"
 hadoopSpark3 = "3.4.2"
-hadoopSpark4 = "3.4.2"
+hadoopSpark4 = "3.5.0"
 clouderaHadoop = "3.1.1.7.1.9.14-2"
-iceberg = "1.10.0"
+scalaSpark4 = "2.13.18"
+iceberg = "1.11.0"
 clouderaIceberg = "1.8.1"
-kafkaClients = "3.9.1"
+kafkaClients = "3.9.2"
 ```
 
 Naming guidance:
@@ -409,7 +410,6 @@ keys.
 ```toml
 [libraries]
 spark4Sql = { module = "org.apache.spark:spark-sql_2.13", version.ref = "spark4" }
-spark4Iceberg = { module = "org.apache.iceberg:iceberg-spark-runtime-4.0_2.13", version.ref = "iceberg" }
 spark4Avro = { module = "org.apache.spark:spark-avro_2.13", version.ref = "spark4" }
 spark4Kafka = { module = "org.apache.spark:spark-sql-kafka-0-10_2.13", version.ref = "spark4" }
 sparkKafkaClients = { module = "org.apache.kafka:kafka-clients", version.ref = "kafkaClients" }
@@ -473,9 +473,8 @@ spark-platform-spark4-managed = [
     "spark4HadoopClientApi",
     "spark4HadoopClientRuntime",
 ]
-spark-platform-spark4-variant-iceberg = ["spark4Iceberg"]
+spark-platform-spark4-variant-openlineage = ["spark4Openlineage"]
 spark-platform-spark4-addon-hadoopAws = ["spark4HadoopAws"]
-spark-platform-spark4-addon-icebergAws = ["icebergAwsBundle"]
 spark-base-spark4-runtime = [
     "spark4Core",
     "spark4Sql",
@@ -577,7 +576,7 @@ transitively. The platform pins it explicitly:
 
 ```toml
 [versions]
-kafkaClients = "3.9.1"
+kafkaClients = "3.9.2"
 
 [libraries]
 sparkKafkaClients = { module = "org.apache.kafka:kafka-clients", version.ref = "kafkaClients" }
@@ -729,7 +728,7 @@ tasks when `-PsparkPlatform.variants` is not provided.
 
 ```toml
 [defaultVariants]
-spark4 = ["iceberg", "hudi", "paimon", "openlineage"]
+spark4 = ["openlineage"]
 ```
 
 Implications:
@@ -769,7 +768,8 @@ when no explicit profile is requested.
 
 ```toml
 [defaultProfiles]
-spark4 = ["lakehouse"]
+spark3 = ["lakehouse"]
+spark4 = ["openlineage"]
 ```
 
 Implications:
@@ -786,16 +786,20 @@ Implications:
 variants and addons.
 
 ```toml
-[profiles.spark4.lakehouse]
+[profiles.spark3.lakehouse]
 variants = ["iceberg", "hudi", "paimon", "openlineage"]
 addons = ["hadoopAws", "hadoopGcs", "icebergAws"]
+
+[profiles.spark4.openlineage]
+variants = ["openlineage"]
+addons = ["hadoopAws"]
 ```
 
 The profile affects image tags and image contents:
 
-- Profile tag: `spark4-lakehouse-<version>`.
+- Profile tag: `spark3-lakehouse-<version>`.
 - Explicit variant/addon tag without profile:
-  `spark4-iceberg-hudi-paimon-openlineage-hadoopaws-hadoopgcs-<version>`.
+  `spark3-iceberg-hudi-paimon-openlineage-hadoopaws-hadoopgcs-<version>`.
 
 Application builds may set `profile` to choose a curated platform base image
 tag, but they should still set the variants/addons their code compiles against.
@@ -922,26 +926,26 @@ Run plugin functional tests:
 env GRADLE_USER_HOME=/data/.gradle ./gradlew :plugin:test --no-configuration-cache
 ```
 
-Run the Spark 4 + Iceberg example:
+Run the Spark 4 SQL example:
 
 ```bash
 cd examples
-env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4-iceberg:run --no-configuration-cache
+env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4-sql:run --no-configuration-cache
 ```
 
-Build and run the Spark 4 + Iceberg example app image:
+Build and run the Spark 4 SQL example app image:
 
 ```bash
 cd examples
-env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4-iceberg:jibDockerBuild --no-configuration-cache
+env GRADLE_USER_HOME=/data/.gradle ../gradlew :spark4-sql:jibDockerBuild --no-configuration-cache
 
 docker run --rm \
   -e SPARK_DRIVER_BIND_ADDRESS=0.0.0.0 \
-  org.openprojectx.spark.platform.examples/spark4-iceberg:0.1.1-snapshot \
+  org.openprojectx.spark.platform.examples/spark4-sql:0.1.1-snapshot \
   driver \
   --master 'local[*]' \
   --conf spark.driver.host=127.0.0.1 \
-  --class org.openprojectx.spark.platform.examples.spark4.Spark4IcebergExample \
+  --class org.openprojectx.spark.platform.examples.spark4.Spark4SqlExample \
   local:///opt/spark/app/app.jar
 ```
 
@@ -1023,7 +1027,7 @@ List jars in a built platform image:
 
 ```bash
 docker run --rm --entrypoint ls \
-  ghcr.io/openprojectx/spark-platform:spark4-iceberg-0.1.1-SNAPSHOT \
+  ghcr.io/openprojectx/spark-platform:spark4-openlineage-hadoopaws-0.1.1-SNAPSHOT \
   /opt/spark/jars
 ```
 
@@ -1032,7 +1036,7 @@ as Spark launch arguments. For a stable sorted jar list:
 
 ```bash
 docker run --rm --entrypoint sh \
-  ghcr.io/openprojectx/spark-platform:spark4-iceberg-0.1.1-SNAPSHOT \
+  ghcr.io/openprojectx/spark-platform:spark4-openlineage-hadoopaws-0.1.1-SNAPSHOT \
   -c 'find /opt/spark/jars -maxdepth 1 -type f -name "*.jar" -printf "%f\n" | sort'
 ```
 
@@ -1114,7 +1118,7 @@ For a storage connector such as Hadoop AWS or GCS, the normal pattern is:
 ```toml
 [versions]
 hadoopAwsSpark3 = "3.4.2"
-hadoopAwsSpark4 = "3.4.2"
+hadoopAwsSpark4 = "3.5.0"
 gcsConnector = "hadoop3-2.x.x"
 
 [libraries]
@@ -1195,7 +1199,10 @@ image, exclusion, or capability rule.
    hard-code upgraded versions in plugin or platform-image source.
 5. Re-check variant artifacts for the Spark line, for example Iceberg, Hudi,
    Paimon, and OpenLineage coordinates. Some variants encode both Spark and
-   Scala versions in the artifact name.
+   Scala versions in the artifact name. Upgrade each connector to its newest
+   compatible release and run a real connector smoke test. If upstream does not
+   publish a runtime for the target Spark minor, remove that line's variant
+   bundle and profile entry instead of reusing an older Spark runtime artifact.
 6. Check Hadoop deliberately. Runtime base images must get Hadoop from the
    Gradle version catalog and BOM, not from jars bundled inside the Apache Spark
    binary distribution. The layout image strips distribution jars before the

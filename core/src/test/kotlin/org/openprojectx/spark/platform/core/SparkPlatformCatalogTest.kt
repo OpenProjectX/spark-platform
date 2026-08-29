@@ -41,16 +41,16 @@ class SparkPlatformCatalogTest {
     @Test
     fun `derives image tag from platform line variants and version`() {
         assertEquals(
-            "spark4-iceberg-hadoopaws-0.1.1-SNAPSHOT",
-            SparkPlatformCatalog.imageTag(" Spark4 ", listOf("Iceberg", "hadoop_aws"), "0.1.1-SNAPSHOT")
+            "spark5-iceberg-hadoopaws-0.1.1-SNAPSHOT",
+            SparkPlatformCatalog.imageTag(" Spark5 ", listOf("Iceberg", "hadoop_aws"), "0.1.1-SNAPSHOT")
         )
         assertEquals(
-            "spark4-iceberg-hadoopaws-0.1.1-SNAPSHOT",
-            SparkPlatformCatalog.imageTag(" Spark4 ", listOf("Iceberg"), listOf("hadoop_aws"), "0.1.1-SNAPSHOT")
+            "spark5-iceberg-hadoopaws-0.1.1-SNAPSHOT",
+            SparkPlatformCatalog.imageTag(" Spark5 ", listOf("Iceberg"), listOf("hadoop_aws"), "0.1.1-SNAPSHOT")
         )
         assertEquals(
-            "spark4-lakehouse-0.1.1-SNAPSHOT",
-            SparkPlatformCatalog.profileImageTag(" Spark4 ", "Lakehouse", "0.1.1-SNAPSHOT")
+            "spark5-lakehouse-0.1.1-SNAPSHOT",
+            SparkPlatformCatalog.profileImageTag(" Spark5 ", "Lakehouse", "0.1.1-SNAPSHOT")
         )
     }
 }

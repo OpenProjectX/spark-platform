@@ -24,8 +24,6 @@
         <!--        <Logger name="org.apache.spark.ExecutorAllocationManager" level="DEBUG"/>-->
         <!--        <Logger name="org.apache.spark.deploy.k8s" level="DEBUG"/>-->
         <!--        <Logger name="org.apache.spark.scheduler.cluster.k8s" level="DEBUG"/>-->
-        <!--        <Logger name="org.apache.iceberg" level="DEBUG"/>-->
-        <!--        <Logger name="org.apache.iceberg.rest" level="DEBUG"/>-->
         <!--        <Logger name="org.apache.hadoop.hive" level="DEBUG"/>-->
 
         <Logger name="org.apache.hadoop.util" level="TRACE"/>

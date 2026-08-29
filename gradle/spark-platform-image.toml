@@ -23,7 +23,8 @@ suffix = "-java17-python3-r-ubuntu"
 [defaultVariants]
 spark3 = ["iceberg", "hudi", "paimon", "openlineage", "gravitino", "kyuubi"]
 spark3-scala213 = ["iceberg", "openlineage", "gravitino", "kyuubi"]
-spark4 = ["iceberg", "hudi", "paimon", "openlineage"]
+# Iceberg, Hudi, and Paimon do not currently publish Spark 4.2 runtimes.
+spark4 = ["openlineage"]
 cloudera = ["iceberg"]
 
 [defaultAddons]
@@ -35,7 +36,7 @@ cloudera = ["hadoopAws", "hadoopGcs", "icebergAws"]
 [defaultProfiles]
 spark3 = ["lakehouse"]
 spark3-scala213 = ["lakehouse"]
-spark4 = ["lakehouse"]
+spark4 = ["openlineage"]
 
 [profiles.spark3.lakehouse]
 variants = ["iceberg", "hudi", "paimon", "openlineage"]
@@ -45,9 +46,9 @@ addons = ["hadoopAws", "hadoopGcs", "icebergAws"]
 variants = ["iceberg", "openlineage"]
 addons = ["hadoopAws", "hadoopGcs", "icebergAws"]
 
-[profiles.spark4.lakehouse]
-variants = ["iceberg", "hudi", "paimon", "openlineage"]
-addons = ["hadoopAws", "hadoopGcs", "icebergAws"]
+[profiles.spark4.openlineage]
+variants = ["openlineage"]
+addons = ["hadoopAws"]
 
 [resolution]
 baseProvidedTransitiveGroups = [
