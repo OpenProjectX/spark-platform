@@ -76,6 +76,58 @@ The plugin creates:
 The plugin expects a Gradle version catalog named `libs`. The repository uses
 `gradle/libs.versions.toml` as the source of truth for Spark Platform versions.
 
+=== Using GitHub Packages Snapshots
+
+Feature-branch snapshots are published to
+`https://maven.pkg.github.com/openprojectx/spark-platform`. GitHub Packages
+requires authentication when consuming Gradle packages, including public
+packages. Configure both plugin and dependency resolution because the plugin
+marker and the implementation/BOM are separate Maven artifacts:
+
+[source,kotlin]
+----
+pluginManagement {
+    repositories {
+        maven("https://maven.pkg.github.com/openprojectx/spark-platform") {
+            credentials {
+                username = providers.gradleProperty("gpr.user")
+                    .orElse(providers.environmentVariable("GITHUB_ACTOR")).get()
+                password = providers.gradleProperty("gpr.key")
+                    .orElse(providers.environmentVariable("GITHUB_TOKEN")).get()
+            }
+        }
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    repositories {
+        maven("https://maven.pkg.github.com/openprojectx/spark-platform") {
+            credentials {
+                username = providers.gradleProperty("gpr.user")
+                    .orElse(providers.environmentVariable("GITHUB_ACTOR")).get()
+                password = providers.gradleProperty("gpr.key")
+                    .orElse(providers.environmentVariable("GITHUB_TOKEN")).get()
+            }
+        }
+        mavenCentral()
+    }
+}
+----
+
+Apply the branch-qualified plugin version, for example:
+
+[source,kotlin]
+----
+plugins {
+    id("org.openprojectx.spark.platform") version
+        "0.1.46-feature-spark4-2-SNAPSHOT"
+}
+----
+
+The plugin version selects the snapshot build. Spark and integration-library
+versions remain owned by the catalog packaged in that plugin.
+
 == Dependency Ownership Contract
 
 Application projects select the platform:

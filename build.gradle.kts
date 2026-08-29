@@ -9,6 +9,22 @@ plugins {
     id("net.researchgate.release") version "3.1.0"
 }
 
+val githubPackagesRepositoryName = "GitHubPackages"
+val imageOnlyProjects = setOf("platform-image", "spark-base-image")
+val validateSnapshotVersion by tasks.registering {
+    group = "publishing"
+    description = "Verifies that GitHub Packages publishing uses a snapshot version."
+    doLast {
+        check(version.toString().endsWith("-SNAPSHOT", ignoreCase = true)) {
+            "GitHub Packages snapshot publishing requires a -SNAPSHOT version, found '$version'."
+        }
+    }
+}
+val publishSnapshotToGitHubPackages by tasks.registering {
+    group = "publishing"
+    description = "Publishes all Java snapshot publications to GitHub Packages."
+}
+
 allprojects {
     group = "org.openprojectx.spark.platform"
 }
@@ -31,46 +47,78 @@ subprojects {
 
         extensions.configure<PublishingExtension>("publishing") {
             publications {
-                if (project.name != "plugin" && project.name != "spark-base-image" && findByName("mavenJava") == null) {
+                if (project.name != "plugin" && project.name !in imageOnlyProjects && findByName("mavenJava") == null) {
                     create<MavenPublication>("mavenJava") {
                         from(components["java"])
                         artifactId = project.name
                     }
                 }
             }
+        }
+    }
 
-            publications.withType<MavenPublication>().configureEach {
-                pom {
-                    name.set(
-                        when (project.name) {
-                            "plugin" -> "Spark Platform"
-                            "core" -> "Spark Platform Core"
-                            else -> project.name
-                        }
-                    )
-                    description.set("Spark Platform Gradle plugin")
+    plugins.withId("java-platform") {
+        extensions.configure<PublishingExtension>("publishing") {
+            publications {
+                if (findByName("mavenJava") == null) {
+                    create<MavenPublication>("mavenJava") {
+                        from(components["javaPlatform"])
+                        artifactId = project.name
+                    }
+                }
+            }
+        }
+    }
+
+    extensions.configure<PublishingExtension>("publishing") {
+        if (project.name !in imageOnlyProjects) {
+            repositories {
+                maven {
+                    name = githubPackagesRepositoryName
+                    url = uri("https://maven.pkg.github.com/openprojectx/spark-platform")
+                    credentials {
+                        username = providers.gradleProperty("gpr.user")
+                            .orElse(providers.environmentVariable("GITHUB_ACTOR"))
+                            .orNull
+                        password = providers.gradleProperty("gpr.key")
+                            .orElse(providers.environmentVariable("GITHUB_TOKEN"))
+                            .orNull
+                    }
+                }
+            }
+        }
+
+        publications.withType<MavenPublication>().configureEach {
+            pom {
+                name.set(
+                    when (project.name) {
+                        "plugin" -> "Spark Platform"
+                        "core" -> "Spark Platform Core"
+                        else -> project.name
+                    }
+                )
+                description.set("Spark Platform Gradle plugin")
+                url.set("https://github.com/OpenProjectX/spark-platform")
+
+                licenses {
+                    license {
+                        name.set("Apache License 2.0")
+                        url.set("https://www.apache.org/licenses/LICENSE-2.0")
+                    }
+                }
+
+                developers {
+                    developer {
+                        id.set("OpenProjectX")
+                        name.set("OpenProjectX")
+                        email.set("admin@openprojectx.org")
+                    }
+                }
+
+                scm {
                     url.set("https://github.com/OpenProjectX/spark-platform")
-
-                    licenses {
-                        license {
-                            name.set("Apache License 2.0")
-                            url.set("https://www.apache.org/licenses/LICENSE-2.0")
-                        }
-                    }
-
-                    developers {
-                        developer {
-                            id.set("OpenProjectX")
-                            name.set("OpenProjectX")
-                            email.set("admin@openprojectx.org")
-                        }
-                    }
-
-                    scm {
-                        url.set("https://github.com/OpenProjectX/spark-platform")
-                        connection.set("scm:git:https://github.com/OpenProjectX/spark-platform.git")
-                        developerConnection.set("scm:git:ssh://git@github.com:OpenProjectX/spark-platform.git")
-                    }
+                    connection.set("scm:git:https://github.com/OpenProjectX/spark-platform.git")
+                    developerConnection.set("scm:git:ssh://git@github.com:OpenProjectX/spark-platform.git")
                 }
             }
         }
@@ -93,6 +141,21 @@ subprojects {
 
     tasks.withType<PublishToMavenRepository>().configureEach {
         dependsOn(tasks.withType<Sign>())
+
+        if (name.endsWith("To${githubPackagesRepositoryName}Repository")) {
+            dependsOn(rootProject.tasks.named("validateSnapshotVersion"))
+        }
+    }
+}
+
+gradle.projectsEvaluated {
+    val githubPackagePublishTasks = subprojects.flatMap { subproject ->
+        subproject.tasks.withType<PublishToMavenRepository>().filter { task ->
+            task.name.endsWith("To${githubPackagesRepositoryName}Repository")
+        }
+    }
+    publishSnapshotToGitHubPackages.configure {
+        dependsOn(githubPackagePublishTasks)
     }
 }
 

@@ -64,6 +64,35 @@ That version is only the Gradle plugin artifact version. Platform dependency
 versions still come from the catalog packaged inside the plugin, and application
 dependencies should remain versionless.
 
+## Publish Branch Snapshots
+
+Pushes to branches other than `master` run `.github/workflows/snapshot.yml`.
+The workflow:
+
+1. Runs the Java tests.
+2. Publishes `core`, `platform-bom`, the Gradle plugin, and its plugin marker
+   to GitHub Packages.
+3. Publishes the configured curated platform images to GHCR.
+4. Does not build or publish Spark layout or runtime base images. Base images
+   remain separately managed inputs to the platform-image build.
+
+Snapshot versions are branch-qualified to prevent different branches from
+overwriting each other. For example, branch `feature/spark4.2` and project
+version `0.1.46-SNAPSHOT` publish as
+`0.1.46-feature-spark4-2-SNAPSHOT`. Platform image tags use the same version.
+
+Publish Java snapshots manually with a GitHub token that can write packages:
+
+```bash
+env GRADLE_USER_HOME=/data/.gradle \
+  GITHUB_ACTOR=<github-user> \
+  GITHUB_TOKEN=<token> \
+  ./gradlew publishSnapshotToGitHubPackages --no-configuration-cache
+```
+
+The aggregate rejects versions that do not end in `-SNAPSHOT`. It intentionally
+contains no `spark-base-image` publication tasks.
+
 ## Repository Conventions
 
 - Keep dependency versions in `gradle/libs.versions.toml`.
