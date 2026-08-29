@@ -9,6 +9,7 @@ import org.junit.jupiter.api.io.TempDir
 import java.io.File
 
 class SparkPlatformPluginFunctionalTest {
+    private val ciEnvironmentVariables = setOf("CI", "GITHUB_ACTIONS", "JENKINS_HOME")
     private val spark3Version = "3.5.8"
     private val spark4Version = "4.2.0"
     private val clouderaSparkVersion = "3.3.2.3.3.7190.9-1"
@@ -585,6 +586,8 @@ class SparkPlatformPluginFunctionalTest {
         return GradleRunner.create()
             .withProjectDir(projectDir)
             .withArguments(*arguments, "--stacktrace")
+            // Keep fixture defaults independent of the CI process hosting the tests.
+            .withEnvironment(System.getenv().filterKeys { it !in ciEnvironmentVariables })
             .withPluginClasspath()
     }
 }
