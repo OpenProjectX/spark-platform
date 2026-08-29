@@ -333,11 +333,13 @@ dependencies {
     }
 }
 
+val platformJibDirectory = layout.buildDirectory.dir("jib")
+
 val syncPlatformJars by tasks.registering(Sync::class) {
     from(platformJars) {
         into("opt/spark/jars")
     }
-    into(layout.buildDirectory.dir("jib"))
+    into(platformJibDirectory)
 }
 
 jib {
@@ -349,11 +351,16 @@ jib {
             providers.provider { platformImageTag(platformLine.get(), variants.get(), addons.get(), selectedProfile) }
         ).get()}"
     }
-    extraDirectories {
-        paths {
-            path {
-                setFrom(layout.buildDirectory.dir("jib").get().asFile)
-                into = "/"
+    // A baseline platform image intentionally has no extra jar layer. Jib
+    // requires configured extra-directory paths to exist, while Gradle skips
+    // Sync and removes its output when there are no variant/addon sources.
+    if (variants.get().isNotEmpty() || addons.get().isNotEmpty()) {
+        extraDirectories {
+            paths {
+                path {
+                    setFrom(platformJibDirectory.get().asFile)
+                    into = "/"
+                }
             }
         }
     }
