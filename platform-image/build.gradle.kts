@@ -1,9 +1,8 @@
-import buildsrc.ModuleCoordinate
+import buildsrc.applyCapabilityResolutionRules
 import buildsrc.loadPlatformImageConfig
 import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.api.artifacts.ExternalModuleDependencyBundle
 import org.gradle.api.artifacts.ModuleDependency
-import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import org.gradle.api.tasks.Exec
 
 plugins {
@@ -82,25 +81,7 @@ val platformJars = configurations.create("platformJars") {
 }
 val jibImageTaskNames = setOf("jib", "jibDockerBuild", "jibBuildTar")
 
-fun ModuleComponentIdentifier.matches(coordinate: ModuleCoordinate): Boolean {
-    return group == coordinate.group && module == coordinate.name
-}
-
-configurations.configureEach {
-    capabilityResolutionRules.forEach { rule ->
-        resolutionStrategy.capabilitiesResolution.withCapability(rule.capability.toString()) {
-            val provider = candidates.firstOrNull { candidate ->
-                val id = candidate.id
-                id is ModuleComponentIdentifier && id.matches(rule.preferredProvider)
-            }
-
-            if (provider != null) {
-                select(provider)
-                because(rule.reason)
-            }
-        }
-    }
-}
+configurations.applyCapabilityResolutionRules(capabilityResolutionRules)
 
 fun variantBundleName(line: String, variant: String): String {
     return "spark-platform-${line.trim().lowercase()}-variant-${normalizeVariant(variant)}"

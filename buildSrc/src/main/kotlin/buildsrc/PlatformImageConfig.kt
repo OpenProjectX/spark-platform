@@ -1,5 +1,7 @@
 package buildsrc
 
+import org.gradle.api.artifacts.ConfigurationContainer
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
 import org.tomlj.Toml
 import org.tomlj.TomlArray
 import org.tomlj.TomlTable
@@ -38,6 +40,28 @@ data class PlatformImageConfig(
     val baseProvidedTransitiveGroups: Set<String>,
     val capabilityResolutionRules: List<CapabilityResolutionRule>
 )
+
+fun ConfigurationContainer.applyCapabilityResolutionRules(rules: List<CapabilityResolutionRule>) {
+    configureEach {
+        rules.forEach { rule ->
+            // Competing modules may advertise the same capability. Select by
+            // configured module coordinates so provider versions remain BOM-owned.
+            resolutionStrategy.capabilitiesResolution.withCapability(rule.capability.toString()) {
+                val provider = candidates.firstOrNull { candidate ->
+                    val id = candidate.id
+                    id is ModuleComponentIdentifier &&
+                        id.group == rule.preferredProvider.group &&
+                        id.module == rule.preferredProvider.name
+                }
+
+                if (provider != null) {
+                    select(provider)
+                    because(rule.reason)
+                }
+            }
+        }
+    }
+}
 
 fun loadPlatformImageConfig(
     file: File,

@@ -862,7 +862,7 @@ Implications:
 ### `capabilityResolution`
 
 `[[capabilityResolution]]` adds data-driven Gradle capability-resolution rules
-for platform image dependency resolution.
+for both Gradle-managed Spark runtime base images and platform image layers.
 
 ```toml
 [[capabilityResolution]]
@@ -874,7 +874,9 @@ reason = "Paimon's Spark bundle expects at.yawk.lz4:lz4-java when both LZ4 provi
 Implications:
 
 - Use this for generic resolution rules that may apply to more than one future
-  variant/addon.
+  Spark line, variant, or addon.
+- The rule selects a provider module, not a version. The line BOM and managed
+  dependency graph continue to own the provider version.
 - Keep the reason specific enough that future maintainers know why the provider
   was selected.
 - If the same capability rule is needed for application dependency resolution,

@@ -1,3 +1,5 @@
+import buildsrc.applyCapabilityResolutionRules
+import buildsrc.loadPlatformImageConfig
 import org.gradle.api.artifacts.ExternalModuleDependencyBundle
 import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.api.tasks.Exec
@@ -18,6 +20,12 @@ val jibImageTag = providers.gradleProperty("sparkBaseImage.imageTag")
 val useLocalLayoutImages = providers.gradleProperty("sparkBaseImage.localLayoutImages")
     .map(String::toBoolean)
     .orElse(false)
+val platformImageConfigPath = providers.gradleProperty("sparkPlatform.imageConfig")
+    .orElse("gradle/spark-platform-image.toml")
+val capabilityResolutionRules = loadPlatformImageConfig(
+    rootProject.layout.projectDirectory.file(platformImageConfigPath.get()).asFile,
+    String::trim
+).capabilityResolutionRules
 
 fun catalogVersion(name: String): String {
     return libsCatalog.findVersion(name)
@@ -162,6 +170,8 @@ val runtimeJars = configurations.create("runtimeJars") {
     isCanBeResolved = true
     description = "Gradle-managed Spark runtime jars for clean Spark base images."
 }
+
+configurations.applyCapabilityResolutionRules(capabilityResolutionRules)
 
 dependencies {
     add(runtimeJars.name, platform(project(":platform-bom")))

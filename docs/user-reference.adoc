@@ -801,7 +801,9 @@ individual variant tag.
 
 Default curated profiles, default variants/addons, base image defaults,
 isolated variants, transitive excludes, and capability-resolution rules are read from
-`gradle/spark-platform-image.toml`. Use
+`gradle/spark-platform-image.toml`. Capability rules apply consistently while
+resolving Gradle-managed runtime base-image jars and platform-image jars; they
+select the provider module while the line BOM owns its version. Use
 `-PsparkPlatform.imageConfig=<path>` to point platform image aggregate tasks at
 another config file.
 
