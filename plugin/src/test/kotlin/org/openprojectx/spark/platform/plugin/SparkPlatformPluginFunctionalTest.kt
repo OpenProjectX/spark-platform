@@ -12,6 +12,7 @@ class SparkPlatformPluginFunctionalTest {
     private val ciEnvironmentVariables = setOf("CI", "GITHUB_ACTIONS", "JENKINS_HOME")
     private val spark3Version = "3.5.8"
     private val spark4Version = "4.2.0"
+    private val icebergSpark42Version = "1.12.0-SNAPSHOT"
     private val clouderaSparkVersion = "3.3.2.3.3.7190.9-1"
     private val kafkaClientsVersion = "3.9.2"
     private val gravitinoVersion = "1.3.0"
@@ -386,7 +387,7 @@ class SparkPlatformPluginFunctionalTest {
     }
 
     @Test
-    fun `spark4 rejects connector variants without a Spark 4_2 runtime`() {
+    fun `spark4 exposes the locally published Iceberg Spark 4_2 runtime`() {
         writeFixture(
             """
             sparkPlatform {
@@ -396,11 +397,12 @@ class SparkPlatformPluginFunctionalTest {
             """.trimIndent()
         )
 
-        val result = gradleRunner("printSparkPlatform").buildAndFail()
+        val result = gradleRunner("printSparkPlatform").build()
 
+        assertEquals(TaskOutcome.SUCCESS, result.task(":printSparkPlatform")?.outcome)
         assertTrue(
             result.output.contains(
-                "Spark Platform catalog bundle 'spark-platform-spark4-variant-iceberg' is missing"
+                "constraint=org.apache.iceberg:iceberg-spark-runtime-4.2_2.13:$icebergSpark42Version"
             )
         )
     }

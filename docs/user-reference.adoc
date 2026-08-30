@@ -557,18 +557,18 @@ The `spark4` baseline also constrains Scala library, reflect, and compiler to
 dependency from moving the application or base image away from Spark's binary
 and patch-level runtime contract.
 
-The `spark4` line currently exposes OpenLineage as its connector variant.
-Iceberg 1.11 publishes Spark 4.0 and 4.1 runtime artifacts, but no Spark 4.2
-artifact; its latest Spark 4.1 runtime fails on Spark 4.2 because Spark changed
-`org.apache.spark.sql.connector.catalog.View` from an interface to a class.
-Hudi 1.2 and Paimon 1.4 likewise do not publish Spark 4.2 runtimes. Their
-Spark 4 variants are therefore absent from the catalog. Selecting one fails at
-configuration time instead of deferring a binary compatibility failure to
-production.
+The `spark4` line exposes OpenLineage and an experimental Iceberg runtime built
+from the Iceberg Spark 4.2 development branch. The catalog constrains it as
+`org.apache.iceberg:iceberg-spark-runtime-4.2_2.13:1.12.0-SNAPSHOT`. For local
+development, publish that runtime to Maven Local before resolving the variant;
+the repository is already included after the remote repositories in this
+project's settings. Hudi 1.2 and Paimon 1.4 do not publish Spark 4.2 runtimes,
+so their Spark 4 variants remain absent.
 
-Release publishing uses the curated `spark4-openlineage-<version>` profile. It
-contains the OpenLineage variant and Hadoop AWS addon, keeping Spark 4.2 in the
-release image set without claiming unsupported table-format runtimes.
+Release publishing continues to use the curated
+`spark4-openlineage-<version>` profile. The experimental Iceberg snapshot is
+not included in default release images until it is available from a durable
+remote Maven repository.
 
 Spark Avro `spark-avro` is also part of the line-managed Spark baseline. Its
 artifact uses the selected Scala binary suffix and its version follows the

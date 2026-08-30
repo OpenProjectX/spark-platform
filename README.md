@@ -171,10 +171,12 @@ upstream Spark image. Curated images use profile tags such as
 `spark3-lakehouse-0.1.1-SNAPSHOT`; explicit custom images include selected
 variants and addons in the tag.
 
-Spark 4.2 currently exposes the OpenLineage variant. Iceberg 1.11, Hudi 1.2,
-and Paimon 1.4 do not publish Spark 4.2 runtime artifacts; selecting those
-variants on `spark4` fails during catalog configuration instead of producing an
-image with a known binary-incompatible connector.
+Spark 4.2 exposes OpenLineage and an experimental Iceberg variant. The Iceberg
+runtime is built from the Spark 4.2 development branch and consumed as
+`org.apache.iceberg:iceberg-spark-runtime-4.2_2.13:1.12.0-SNAPSHOT` from Maven
+Local. It is intentionally excluded from default release image profiles until
+the snapshot has a durable remote repository. Hudi 1.2 and Paimon 1.4 do not
+publish Spark 4.2 runtimes and remain unavailable on this line.
 
 The `spark-base-image` module publishes project-owned base images to
 `ghcr.io/openprojectx/spark` for every supported Spark line. It first builds a

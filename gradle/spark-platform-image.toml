@@ -23,7 +23,9 @@ suffix = "-java17-python3-r-ubuntu"
 [defaultVariants]
 spark3 = ["iceberg", "hudi", "paimon", "openlineage", "gravitino", "kyuubi"]
 spark3-scala213 = ["iceberg", "openlineage", "gravitino", "kyuubi"]
-# Iceberg, Hudi, and Paimon do not currently publish Spark 4.2 runtimes.
+# Iceberg is available as an experimental locally published snapshot, but it
+# is not a default image until that artifact has a durable remote repository.
+# Hudi and Paimon do not currently publish Spark 4.2 runtimes.
 spark4 = ["openlineage"]
 cloudera = ["iceberg"]
 

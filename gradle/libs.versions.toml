@@ -16,6 +16,7 @@ hadoopSpark4 = "3.5.0"
 clouderaHadoop = "3.1.1.7.1.9.14-2"
 scalaSpark4 = "2.13.18"
 iceberg = "1.11.0"
+icebergSpark42 = "1.12.0-SNAPSHOT"
 clouderaIceberg = "1.8.1"
 hudi = "1.2.0"
 paimon = "1.4.1"
@@ -89,8 +90,7 @@ spark4Graphx = { module = "org.apache.spark:spark-graphx_2.13", version.ref = "s
 spark4Repl = { module = "org.apache.spark:spark-repl_2.13", version.ref = "spark4" }
 spark4HadoopClientApi = { module = "org.apache.hadoop:hadoop-client-api", version.ref = "hadoopSpark4" }
 spark4HadoopClientRuntime = { module = "org.apache.hadoop:hadoop-client-runtime", version.ref = "hadoopSpark4" }
-# Spark 4.2 connector bundles are intentionally limited to artifacts whose
-# upstream projects publish a compatible Spark 4.2 runtime.
+spark4Iceberg = { module = "org.apache.iceberg:iceberg-spark-runtime-4.2_2.13", version.ref = "icebergSpark42" }
 spark4Openlineage = { module = "io.openlineage:openlineage-spark_2.13", version.ref = "openlineage" }
 spark4Kafka = { module = "org.apache.spark:spark-sql-kafka-0-10_2.13", version.ref = "spark4" }
 spark4ScalaLibrary = { module = "org.scala-lang:scala-library", version.ref = "scalaSpark4" }
@@ -206,6 +206,7 @@ spark-platform-spark4-managed = [
     "spark4HadoopClientApi",
     "spark4HadoopClientRuntime",
 ]
+spark-platform-spark4-variant-iceberg = ["spark4Iceberg"]
 spark-platform-spark4-variant-openlineage = ["spark4Openlineage"]
 spark-base-spark4-runtime = [
     "spark4Core",

@@ -442,6 +442,7 @@ spark4Sql = { module = "org.apache.spark:spark-sql_2.13", version.ref = "spark4"
 spark4Avro = { module = "org.apache.spark:spark-avro_2.13", version.ref = "spark4" }
 spark4Kafka = { module = "org.apache.spark:spark-sql-kafka-0-10_2.13", version.ref = "spark4" }
 sparkKafkaClients = { module = "org.apache.kafka:kafka-clients", version.ref = "kafkaClients" }
+spark4Iceberg = { module = "org.apache.iceberg:iceberg-spark-runtime-4.2_2.13", version.ref = "icebergSpark42" }
 icebergAwsBundle = { module = "org.apache.iceberg:iceberg-aws-bundle", version.ref = "iceberg" }
 spark4HadoopAws = { module = "org.apache.hadoop:hadoop-aws", version.ref = "hadoopSpark4" }
 clouderaSparkSql = { module = "org.apache.spark:spark-sql_2.12", version.ref = "cloudera" }
@@ -502,6 +503,7 @@ spark-platform-spark4-managed = [
     "spark4HadoopClientApi",
     "spark4HadoopClientRuntime",
 ]
+spark-platform-spark4-variant-iceberg = ["spark4Iceberg"]
 spark-platform-spark4-variant-openlineage = ["spark4Openlineage"]
 spark-platform-spark4-addon-hadoopAws = ["spark4HadoopAws"]
 spark-base-spark4-runtime = [
@@ -661,6 +663,46 @@ dependencies {
 That application gets strict constraints for Spark SQL and Spark SQL Kafka from
 the packaged platform catalog, while Spark base runtime images get the matching
 Kafka jar from the `spark-base-<line>-runtime` bundle.
+
+### Developing Against The Iceberg Spark 4.2 Snapshot
+
+The Spark 4.2 Iceberg connector is currently built from the
+`spark-4.2-investigation` branch in the sibling Iceberg checkout. Iceberg
+derives `1.12.0-SNAPSHOT` from its latest `apache-iceberg-1.11.0` tag. Publish
+the shaded runtime to Maven Local before resolving the `spark4`/`iceberg`
+variant:
+
+```bash
+cd ../iceberg
+env GRADLE_USER_HOME=/data/.gradle ./gradlew \
+  -DsparkVersions=4.2 \
+  :iceberg-spark:iceberg-spark-runtime-4.2_2.13:publishApachePublicationToMavenLocal \
+  --console=plain
+```
+
+The resulting consumer coordinate is:
+
+```text
+org.apache.iceberg:iceberg-spark-runtime-4.2_2.13:1.12.0-SNAPSHOT
+```
+
+This repository includes `mavenLocal()` in dependency resolution. Verify that
+the platform resolves the local artifact with:
+
+```bash
+cd ../spark-platform
+env GRADLE_USER_HOME=/data/.gradle ./gradlew \
+  :platform-image:dependencies \
+  --configuration platformJars \
+  -PsparkPlatform.line=spark4 \
+  -PsparkPlatform.variants=iceberg \
+  --no-configuration-cache
+```
+
+The snapshot is an explicit variant but is not part of `defaultProfiles`.
+Default release image publication must not depend on a developer's Maven Local
+repository. Add it to a curated release profile only after the artifact is
+published to a durable remote Maven repository available to CI.
 
 ## Platform Image Configuration
 
